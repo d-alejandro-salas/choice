@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Mixed Quiz — U.S. History, Hollywood & Basketball</title>
+  <title>Mixed Quiz — Dynamic Question Set</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -51,11 +51,14 @@
     .keyOk{background:var(--borderColour);border-color:var(--borderColour)}
 
     /* Option tiles */
-    .option{border:1px solid var(--borderColour); background:var(--secondColour); transition:box-shadow .2s ease,border-color .2s ease; border-radius:1rem; padding:clamp(12px, 1.2vw + 8px, 22px)}
+    .option{border:1px solid var(--borderColour); background:var(--secondColour); transition:box-shadow .2s ease,border-color .2s ease, opacity .2s ease, filter .2s ease; border-radius:1rem; padding:clamp(12px, 1.2vw + 8px, 22px)}
     .option:hover{box-shadow:0 0 0 3px rgba(0,0,0,.06) inset}
     .option .optionText{color:#ffffff; font-size:clamp(1rem, 1.2vw + .6rem, 1.35rem)}
-    .option.discarded{opacity:.55; pointer-events:none}
-    .option.discarded .optionText{text-decoration:line-through}
+
+    /* DESCARTE: bloquea la opción (deshabilita clics) pero NO la tacha */
+    .option.discarded{opacity:.45; pointer-events:none; filter:grayscale(.4)}
+    .option.discarded .optionText{text-decoration:none}
+
     .option:focus{outline:3px solid var(--borderColour); outline-offset:2px}
 
     /* ABCDE label — forced white; in feedback states we recolor if needed */
@@ -88,8 +91,6 @@
     .iconBad{color:var(--secondColour)}
     .discardBtn{color:var(--mainColour)}
 
-    /* legend removed */
-
     @media (max-width: 420px){
       .container{border-width:1.5px; margin:1rem auto}
       .paper{border-width:1px}
@@ -99,60 +100,83 @@
 <body class="flex flex-col items-center min-h-screen p-4">
   <section class="container rounded-2xl shadow-xl p-4 sm:p-8" role="region" aria-label="Mixed quiz">
 
-    <div id="quizHeader" class="paper rounded-xl p-3 sm:p-4 mb-6">
-      <div class="flex items-center gap-3">
-        <div id="progressBar" class="progressBar flex-grow flex items-center gap-2" aria-label="Progress"></div>
-        <span id="progressText" class="font-semibold heading" aria-live="polite"></span>
+    <!-- SETUP: el usuario pega aquí su propio arreglo de preguntas -->
+    <div id="setupArea" class="paper rounded-xl p-4 sm:p-5 mb-6 text-center">
+      <h1 class="heading font-bold mb-4" style="font-size:clamp(1.4rem, 1.5vw + 1.1rem, 2.2rem)">Inserte aquí su arreglo</h1>
+      <textarea id="questionsInput" class="w-full border border-slate-300 rounded-lg p-2 text-xs font-mono h-52" placeholder="Pegue aquí su arreglo..."></textarea>
+      <p id="setupError" class="mt-2 text-sm text-red-600 hidden"></p>
+      <button id="loadQuizBtn" class="mt-4 w-full py-3 font-semibold btn" aria-label="Cargar preguntas y comenzar">Cargar</button class="mt-4 w-full py-3 font-semibold btn" aria-label="Cargar preguntas y comenzar">
+        Cargar preguntas y comenzar
+      </button>
+    </div>
+
+    <!-- CONTENIDO DEL QUIZ (se muestra solo tras cargar las preguntas) -->
+    <div id="quizArea" class="hidden">
+      <div id="quizHeader" class="paper rounded-xl p-3 sm:p-4 mb-6">
+        <div class="flex items-center gap-3">
+          <div id="progressBar" class="progressBar flex-grow flex items-center gap-2" aria-label="Progress"></div>
+          <span id="progressText" class="font-semibold heading" aria-live="polite"></span>
+        </div>
       </div>
-    </div>
 
-    <div id="questionArea" class="paper rounded-xl p-4 sm:p-5">
-      <h1 class="sr-only">Mixed Quiz</h1>
-      <h2 id="questionTitle" class="heading font-bold mb-4" style="font-size:clamp(1.25rem, 1.4vw + 1rem, 2rem)"></h2>
-      <ul id="optionsContainer" class="space-y-3" role="listbox" aria-labelledby="questionTitle"></ul>
-    </div>
+      <div id="questionArea" class="paper rounded-xl p-4 sm:p-5">
+        <h2 id="questionTitle" class="heading font-bold mb-4" style="font-size:clamp(1.25rem, 1.4vw + 1rem, 2rem)"></h2>
+        <ul id="optionsContainer" class="space-y-3" role="listbox" aria-labelledby="questionTitle"></ul>
+      </div>
 
-    <div id="resultsArea" class="hidden paper rounded-xl p-4 sm:p-5 mt-6">
-      <h2 class="text-center heading font-bold" style="font-size:clamp(1.5rem, 1.6vw + 1.2rem, 2.2rem)">Quiz Completed</h2>
-      <p class="text-center muted mb-6">Here are your results.</p>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center mb-8">
-        <div class="card p-4 rounded-lg">
-          <p class="muted" style="font-size:.95rem">Score</p>
-          <p id="scoreText" class="heading font-bold" style="font-size:clamp(1.4rem, 1.4vw + 1rem, 2rem)"></p>
-        </div>
-        <div class="card p-4 rounded-lg">
-          <p class="muted" style="font-size:.95rem">Accuracy</p>
-          <p id="accuracyText" class="heading font-bold" style="font-size:clamp(1.4rem, 1.4vw + 1rem, 2rem)"></p>
-        </div>
-        <div class="card p-4 rounded-lg">
-          <p class="muted" style="font-size:.95rem">Results</p>
-          <div class="heading font-bold" style="font-size:clamp(1.1rem, 1.2vw + .8rem, 1.6rem)">
-            <span id="correctCount"></span> / <span id="incorrectCount" class="text"></span>
+      <div id="resultsArea" class="hidden paper rounded-xl p-4 sm:p-5 mt-6">
+        <h2 class="text-center heading font-bold" style="font-size:clamp(1.5rem, 1.6vw + 1.2rem, 2.2rem)">Quiz Completed</h2>
+        <p class="text-center muted mb-6">Here are your results.</p>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center mb-8">
+          <div class="card p-4 rounded-lg">
+            <p class="muted" style="font-size:.95rem">Score</p>
+            <p id="scoreText" class="heading font-bold" style="font-size:clamp(1.4rem, 1.4vw + 1rem, 2rem)"></p>
+          </div>
+          <div class="card p-4 rounded-lg">
+            <p class="muted" style="font-size:.95rem">Accuracy</p>
+            <p id="accuracyText" class="heading font-bold" style="font-size:clamp(1.4rem, 1.4vw + 1rem, 2rem)"></p>
+          </div>
+          <div class="card p-4 rounded-lg">
+            <p class="muted" style="font-size:.95rem">Results</p>
+            <div class="heading font-bold" style="font-size:clamp(1.1rem, 1.2vw + .8rem, 1.6rem)">
+              <span id="correctCount"></span> / <span id="incorrectCount" class="text"></span>
+            </div>
           </div>
         </div>
+
+        <div id="feedbackContainer" class="card rounded-xl p-4">
+          <h3 class="heading font-bold mb-4" style="font-size:clamp(1.25rem, 1.4vw + 1rem, 1.75rem)">Review Your Answers</h3>
+          <p id="feedbackSummary" class="mb-6 muted"></p>
+          <div id="detailedFeedback" class="space-y-4"></div>
+        </div>
+
+        <button id="restartBtn" class="mt-8 w-full py-3 font-semibold btn" aria-label="Restart quiz">
+          Take Quiz Again
+        </button>
       </div>
 
-      <div id="feedbackContainer" class="card rounded-xl p-4">
-        <h3 class="heading font-bold mb-4" style="font-size:clamp(1.25rem, 1.4vw + 1rem, 1.75rem)">Review Your Answers</h3>
-        <p id="feedbackSummary" class="mb-6 muted"></p>
-        <div id="detailedFeedback" class="space-y-4"></div>
+      <div id="navContainer" class="mt-8 pt-2">
+        <button id="navBtn" class="w-full py-3 font-semibold btn" aria-label="Next question">
+          Next Question
+        </button>
       </div>
-
-      <button id="restartBtn" class="mt-8 w-full py-3 font-semibold btn" aria-label="Restart quiz">
-        Take Quiz Again
-      </button>
-    </div>
-
-    <div id="navContainer" class="mt-8 pt-2">
-      <button id="navBtn" class="w-full py-3 font-semibold btn" aria-label="Next question">
-        Next Question
-      </button>
     </div>
   </section>
 
   <script>
     // Utilities
-    function shuffle(arr){ const a = arr.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]] = [a[j],a[i]]; } return a; }
+    function shuffle(arr){
+      const a = arr.slice();
+      for(let i=a.length-1;i>0;i--){
+        const j=Math.floor(Math.random()*(i+1));
+        [a[i],a[j]] = [a[j],a[i]];
+      }
+      return a;
+    }
+
+    // Data (se cargará dinámicamente desde el textarea)
+    let baseQuizData = [];
+    let quizData = [];
 
     // Progress bar
     function setupProgressBar(){
@@ -165,201 +189,22 @@
     }
     function updateProgressBar(status){
       const segment = progressBar.children[currentQuestionIndex];
+      if(!segment) return;
       segment.classList.add(status === 'correct' ? 'dashOk' : 'dashBad');
     }
 
-    // === NEW MIXED QUIZ (20) 
-const baseQuizData = [
-  // Derecho argentino contemporáneo — Nivel difícil
+    // Estado global del quiz
+    let currentQuestionIndex = 0;
+    let score = 0;
+    let userAnswers = [];
 
-  { 
-    question: "Tras la reforma constitucional de 1994, ¿qué característica define al llamado “bloque de constitucionalidad federal” en la Argentina?",
-    options: [
-      { text: "Está integrado por la Constitución Nacional y los tratados internacionales de derechos humanos con jerarquía constitucional", correct: true },
-      { text: "Está integrado solo por la Constitución de 1853 sin reformas", correct: false },
-      { text: "Incluye únicamente las constituciones provinciales y los códigos de fondo", correct: false },
-      { text: "Se limita a la Constitución y a los decretos de necesidad y urgencia reglamentarios", correct: false },
-      { text: "Lo constituyen las leyes federales sancionadas por mayoría especial de dos tercios", correct: false }
-    ],
-    explanation: "La reforma de 1994 otorgó jerarquía constitucional a un conjunto de tratados de derechos humanos (art. 75 inc. 22), que junto con la Constitución integran el llamado bloque de constitucionalidad federal."
-  },
+    // Elementos DOM
+    const setupArea = document.getElementById('setupArea');
+    const questionsInput = document.getElementById('questionsInput');
+    const setupError = document.getElementById('setupError');
+    const loadQuizBtn = document.getElementById('loadQuizBtn');
 
-  { 
-    question: "¿Cuál de los siguientes derechos fue incorporado de manera expresa al texto constitucional argentino por la reforma de 1994?",
-    options: [
-      { text: "El derecho a un ambiente sano, equilibrado y apto para el desarrollo humano", correct: true },
-      { text: "El derecho a portar armas sin autorización estatal", correct: false },
-      { text: "El derecho al voto exclusivamente masculino", correct: false },
-      { text: "El derecho a la esclavitud voluntaria por razones económicas", correct: false },
-      { text: "El derecho a la censura previa sobre publicaciones periodísticas", correct: false }
-    ],
-    explanation: "El artículo 41, incorporado en 1994, reconoce el derecho de todos los habitantes a un ambiente sano, equilibrado y apto para el desarrollo humano, imponiendo además el deber de preservarlo."
-  },
-
-  { 
-    question: "El artículo 75 inciso 17 de la Constitución, introducido en 1994, se refiere de manera específica a…",
-    options: [
-      { text: "El reconocimiento de la preexistencia étnica y cultural y de los derechos de los pueblos indígenas argentinos", correct: true },
-      { text: "La autonomía municipal plena y la elección directa de los intendentes", correct: false },
-      { text: "La delegación legislativa al Poder Ejecutivo en materia tributaria sin límites temporales", correct: false },
-      { text: "La regulación del sistema previsional y las jubilaciones de privilegio", correct: false },
-      { text: "La imposición del voto obligatorio a partir de los 16 años", correct: false }
-    ],
-    explanation: "El art. 75 inc. 17 reconoce la preexistencia de los pueblos indígenas, sus derechos a la identidad, la educación intercultural y la propiedad comunitaria de las tierras que tradicionalmente ocupan."
-  },
-
-  { 
-    question: "En materia institucional, ¿cuál de las siguientes innovaciones fue introducida por la reforma constitucional de 1994?",
-    options: [
-      { text: "La creación del Jefe de Gabinete de Ministros como figura responsable ante el Congreso", correct: true },
-      { text: "La eliminación del Poder Ejecutivo y su reemplazo por un Consejo de Estado colegiado", correct: false },
-      { text: "La supresión del Senado y su reemplazo por una sola cámara legislativa", correct: false },
-      { text: "La elección indirecta del presidente mediante colegio electoral", correct: false },
-      { text: "La reducción del mandato presidencial a dos años sin reelección posible", correct: false }
-    ],
-    explanation: "La reforma de 1994 creó la figura del Jefe de Gabinete, modificó el sistema presidencialista y estableció mecanismos de control como el tratamiento legislativo de los decretos de necesidad y urgencia."
-  },
-
-  { 
-    question: "¿Qué cambio fundamental produjo la ley 26.994 y la entrada en vigencia del Código Civil y Comercial de la Nación?",
-    options: [
-      { text: "Unificó en un solo cuerpo normativo la regulación civil y comercial, derogando los códigos anteriores", correct: true },
-      { text: "Eliminó toda regulación sobre contratos y la dejó librada a la autonomía de la voluntad sin límites", correct: false },
-      { text: "Transformó el Código Civil en una mera colección de principios sin fuerza obligatoria", correct: false },
-      { text: "Sustituyó el derecho privado por normas penales de carácter federal", correct: false },
-      { text: "Suprimió la figura de la persona jurídica en el derecho argentino", correct: false }
-    ],
-    explanation: "El nuevo Código Civil y Comercial, vigente desde el 1 de agosto de 2015, derogó el Código Civil de Vélez y el Código de Comercio, unificando ambas materias en un solo código de fondo."
-  },
-
-  { 
-    question: "¿Cuál de las siguientes afirmaciones refleja una orientación paradigmática del Código Civil y Comercial de 2015?",
-    options: [
-      { text: "Refuerza la protección de la persona humana y de los sujetos en situación de vulnerabilidad como eje central del derecho privado", correct: true },
-      { text: "Reinstala una visión estrictamente patrimonialista, prescindiendo de los derechos humanos", correct: false },
-      { text: "Elimina toda mención a la responsabilidad civil y la sustituye por sanciones penales", correct: false },
-      { text: "Prohíbe expresamente la tutela de intereses colectivos y de consumidores", correct: false },
-      { text: "Retorna sin cambios al esquema original del Código de Vélez Sarsfield", correct: false }
-    ],
-    explanation: "La doctrina destaca que el nuevo código se estructura sobre la centralidad de la persona humana, la perspectiva de derechos humanos y la protección de sujetos vulnerables (consumidores, niños, adultos mayores, etc.)."
-  },
-
-  { 
-    question: "La ley 26.061, de Protección Integral de los Derechos de las Niñas, Niños y Adolescentes, sancionada en 2005, se propone principalmente…",
-    options: [
-      { text: "Sustituir el antiguo modelo de patronato por un sistema de protección integral basado en derechos", correct: true },
-      { text: "Restablecer el poder casi absoluto de los jueces de menores sobre la vida de los niños", correct: false },
-      { text: "Crear un régimen penal juvenil de responsabilidad objetiva", correct: false },
-      { text: "Limitar el alcance de los tratados internacionales de derechos humanos respecto de niños y adolescentes", correct: false },
-      { text: "Suprimir la intervención de organismos administrativos en la protección de derechos", correct: false }
-    ],
-    explanation: "La ley 26.061 reemplaza el enfoque tutelar-paternalista del patronato por un sistema de protección integral, conforme a la Convención sobre los Derechos del Niño, con órganos administrativos especializados."
-  },
-
-  { 
-    question: "La ley 26.618, sancionada en 2010, introdujo en el derecho argentino contemporáneo…",
-    options: [
-      { text: "El matrimonio entre personas del mismo sexo con los mismos requisitos y efectos que el matrimonio heterosexual", correct: true },
-      { text: "La prohibición absoluta del divorcio vincular en todo el territorio nacional", correct: false },
-      { text: "La creación de un instituto alternativo al matrimonio exclusivo para parejas del mismo sexo, sin efectos sucesorios", correct: false },
-      { text: "La eliminación del matrimonio civil y su reemplazo por el matrimonio religioso obligatorio", correct: false },
-      { text: "La imposición de impedimentos matrimoniales adicionales a las parejas sin hijos", correct: false }
-    ],
-    explanation: "La ley 26.618 modificó el régimen de matrimonio civil para reconocer el matrimonio igualitario, estableciendo que los requisitos y efectos son los mismos con independencia del sexo de los contrayentes."
-  },
-
-  { 
-    question: "La ley 27.610, sancionada en 2020 y vigente desde 2021, regula en Argentina…",
-    options: [
-      { text: "El acceso a la interrupción voluntaria del embarazo y la atención postaborto en el sistema de salud", correct: true },
-      { text: "La despenalización total de todos los delitos contra la integridad sexual", correct: false },
-      { text: "La prohibición absoluta de toda forma de anticoncepción quirúrgica", correct: false },
-      { text: "La objeción de conciencia como causa general de exención de responsabilidad penal", correct: false },
-      { text: "La sustitución del consentimiento informado por la autorización judicial obligatoria", correct: false }
-    ],
-    explanation: "La ley 27.610 establece el derecho de toda persona gestante a acceder a la interrupción voluntaria del embarazo hasta cierto plazo y regula garantías mínimas de acceso y atención postaborto en el sistema de salud."
-  },
-
-  { 
-    question: "En el célebre fallo “Simón” (2005), la Corte Suprema de Justicia de la Nación declaró…",
-    options: [
-      { text: "La inconstitucionalidad de las leyes de Punto Final y Obediencia Debida respecto de crímenes de lesa humanidad", correct: true },
-      { text: "La constitucionalidad plena de los indultos presidenciales por delitos de lesa humanidad", correct: false },
-      { text: "La imprescriptibilidad de todos los delitos comunes cometidos antes de 1983", correct: false },
-      { text: "La nulidad de los tratados internacionales de derechos humanos con jerarquía constitucional", correct: false },
-      { text: "La imposibilidad de aplicar el derecho internacional en el ámbito penal interno", correct: false }
-    ],
-    explanation: "En “Simón”, la Corte declaró inconstitucionales las leyes de impunidad y convalidó la nulidad dispuesta por la ley 25.779, habilitando la reapertura de los juicios por delitos de lesa humanidad cometidos durante la dictadura."
-  },
-
-  { 
-    question: "En el fallo “Mazzeo” (2007), la Corte Suprema profundizó la línea jurisprudencial en materia de crímenes de lesa humanidad al…",
-    options: [
-      { text: "Declarar la inconstitucionalidad e inconvencionalidad de los indultos presidenciales por delitos de lesa humanidad", correct: true },
-      { text: "Confirmar la validez irrestricta de todos los indultos concedidos en los años noventa", correct: false },
-      { text: "Establecer la prescripción automática de los delitos cometidos durante la dictadura", correct: false },
-      { text: "Negar la aplicación de la categoría de lesa humanidad en el derecho argentino", correct: false },
-      { text: "Desconocer la jurisprudencia de la Corte Interamericana de Derechos Humanos", correct: false }
-    ],
-    explanation: "En “Mazzeo” la Corte declaró inconstitucionales e inconvencionales los indultos a condenados por crímenes de lesa humanidad, afirmando la obligación estatal de investigar, juzgar y sancionar estos delitos."
-  },
-
-  { 
-    question: "En clave constitucional, ¿qué rasgo distingue a los delitos de lesa humanidad en el derecho argentino contemporáneo?",
-    options: [
-      { text: "Se consideran imprescriptibles y excluidos de amnistías e indultos compatibles con los compromisos internacionales de derechos humanos", correct: true },
-      { text: "Prescriben a los cinco años desde el cese de la dictadura, salvo que el Congreso disponga lo contrario", correct: false },
-      { text: "Quedan sujetos a la amnistía automática transcurridos treinta años", correct: false },
-      { text: "Solo pueden ser perseguidos si la víctima es funcionaria pública en ejercicio", correct: false },
-      { text: "Carecen de relevancia en el derecho interno y solo pueden ser juzgados por tribunales internacionales", correct: false }
-    ],
-    explanation: "Siguiendo tratados con jerarquía constitucional y la jurisprudencia de la Corte (Arancibia Clavel, Simón, Mazzeo), los crímenes de lesa humanidad son imprescriptibles y no pueden ser amnistiados o indultados válidamente."
-  },
-
-  { 
-    question: "En materia de organización territorial, ¿qué efecto relevante tuvo la reforma constitucional de 1994 sobre la Ciudad de Buenos Aires?",
-    options: [
-      { text: "Reconoció su autonomía, con facultades propias de gobierno y dictado de su Constitución local", correct: true },
-      { text: "La transformó en una provincia más, con dos senadores y gobernador propio", correct: false },
-      { text: "Suprimió toda elección local y dispuso la designación directa de sus autoridades por el Poder Ejecutivo nacional", correct: false },
-      { text: "La declaró territorio federal sin representación en el Congreso", correct: false },
-      { text: "La incorporó como departamento administrativo dependiente de la provincia de Buenos Aires", correct: false }
-    ],
-    explanation: "La reforma de 1994 reconoció la autonomía de la Ciudad de Buenos Aires, habilitando la sanción de su propia Constitución y la elección directa de sus autoridades locales."
-  },
-
-  { 
-    question: "Dentro de las nuevas herramientas procesales reconocidas o reforzadas por la Constitución reformada en 1994, ¿cuál de las siguientes se vincula directamente con la tutela de derechos colectivos?",
-    options: [
-      { text: "La acción de amparo en defensa de derechos de incidencia colectiva, tales como el ambiente y los derechos del consumidor", correct: true },
-      { text: "El recurso de queja directamente ante el Poder Ejecutivo", correct: false },
-      { text: "La consulta obligatoria ante el Senado para todo conflicto privado", correct: false },
-      { text: "El juicio por jurados para infracciones administrativas menores", correct: false },
-      { text: "La revisión automática por la Corte Suprema de todas las sentencias civiles", correct: false }
-    ],
-    explanation: "El art. 43 amplía la acción de amparo e incluye su ejercicio en defensa de derechos de incidencia colectiva, como los relativos al ambiente, la competencia y los consumidores."
-  },
-
-  { 
-    question: "Respecto del derecho al ambiente en la Argentina contemporánea, ¿cuál de las siguientes afirmaciones es correcta?",
-    options: [
-      { text: "La Constitución impone la obligación prioritaria de recomponer el daño ambiental según lo establezca la ley", correct: true },
-      { text: "La Constitución solo reconoce el ambiente como interés económico del Estado y no como derecho de los habitantes", correct: false },
-      { text: "La reparación ambiental se limita al pago de una multa sin obligación de recomponer", correct: false },
-      { text: "Las provincias carecen de competencia alguna en materia ambiental", correct: false },
-      { text: "El derecho al ambiente se reconoce solo a los ciudadanos y no a todos los habitantes", correct: false }
-    ],
-    explanation: "El art. 41 establece el derecho de todos los habitantes a un ambiente sano y prevé que el daño ambiental generará prioritariamente la obligación de recomponer, configurando un mandato fuerte de protección."
-  }
-];
-
-
-
-
-    const quizData = shuffle(baseQuizData).map(q => ({ ...q, options: shuffle(q.options) }));
-
-    let currentQuestionIndex = 0; let score = 0; let userAnswers = [];
-
+    const quizArea = document.getElementById('quizArea');
     const progressBar = document.getElementById('progressBar');
     const progressText = document.getElementById('progressText');
     const questionTitle = document.getElementById('questionTitle');
@@ -375,12 +220,19 @@ const baseQuizData = [
     const feedbackSummary = document.getElementById('feedbackSummary');
     const detailedFeedback = document.getElementById('detailedFeedback');
 
+    function prepareQuizData(){
+      quizData = shuffle(baseQuizData).map(q => ({ ...q, options: shuffle(q.options) }));
+    }
+
     function startQuiz(){
-      currentQuestionIndex = 0; score = 0; userAnswers = Array(quizData.length).fill(null);
+      currentQuestionIndex = 0;
+      score = 0;
+      userAnswers = Array(quizData.length).fill(null);
       resultsArea.classList.add('hidden');
       questionArea.classList.remove('hidden');
-      setupProgressBar(); showQuestion();
-      window.scrollTo({ top: 0, behavior: 'smooth' }); // ensure top visible
+      setupProgressBar();
+      showQuestion();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     function showQuestion(){
@@ -406,7 +258,7 @@ const baseQuizData = [
           <div class="flex items-center">
             <span class="feedbackIcon correct font-bold mr-2 icon-ok" aria-hidden="true">✔</span>
             <span class="feedbackIcon incorrect font-bold mr-2 iconBad" aria-hidden="true">✘</span>
-            <button class="discardBtn font-bold text-2xl leading-none px-2 rounded-full transition" title="Discard option" aria-label="Discard option">&times;</button>
+            <button class="discardBtn font-bold text-2xl leading-none px-2 rounded-full transition" title="Bloquear opción" aria-label="Bloquear opción">&times;</button>
           </div>`;
         optionsContainer.appendChild(li);
       });
@@ -420,11 +272,20 @@ const baseQuizData = [
     function attachOptionListeners(){
       optionsContainer.querySelectorAll('.option').forEach(optionEl => {
         optionEl.addEventListener('click', (e) => {
-          const discardBtn = e.target.closest('.discardBtn');
-          if(discardBtn){ e.stopPropagation(); optionEl.classList.toggle('discarded'); }
-          else{ handleAnswer(parseInt(optionEl.dataset.index, 10)); }
+          const discardBtnEl = e.target.closest('.discardBtn');
+          if(discardBtnEl){
+            e.stopPropagation();
+            optionEl.classList.toggle('discarded'); // bloquea / desbloquea
+          } else {
+            handleAnswer(parseInt(optionEl.dataset.index, 10));
+          }
         });
-        optionEl.addEventListener('keydown', (e) => { if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); handleAnswer(parseInt(optionEl.dataset.index, 10)); }});
+        optionEl.addEventListener('keydown', (e) => {
+          if(e.key === 'Enter' || e.key === ' '){
+            e.preventDefault();
+            handleAnswer(parseInt(optionEl.dataset.index, 10));
+          }
+        });
       });
     }
 
@@ -435,7 +296,12 @@ const baseQuizData = [
       const q = quizData[currentQuestionIndex];
       const isCorrect = q.options[selectedIndex].correct;
       userAnswers[currentQuestionIndex] = { selectedIndex, correct: isCorrect };
-      if(isCorrect){ score++; updateProgressBar('correct'); } else { updateProgressBar('incorrect'); }
+      if(isCorrect){
+        score++;
+        updateProgressBar('correct');
+      } else {
+        updateProgressBar('incorrect');
+      }
 
       optionsContainer.classList.add('feedbackMode');
       const options = optionsContainer.querySelectorAll('.option');
@@ -456,13 +322,20 @@ const baseQuizData = [
       optionEl.classList.toggle('discarded');
     }
 
-    function handleNavButtonClick(){ currentQuestionIndex++; if(currentQuestionIndex < quizData.length) showQuestion(); else showResults(); }
+    function handleNavButtonClick(){
+      currentQuestionIndex++;
+      if(currentQuestionIndex < quizData.length) showQuestion();
+      else showResults();
+    }
 
     function showResults(){
-      questionArea.classList.add('hidden'); resultsArea.classList.remove('hidden');
+      questionArea.classList.add('hidden');
+      resultsArea.classList.remove('hidden');
       const accuracy = Math.round((score / quizData.length) * 100);
-      scoreText.textContent = `${score}/${quizData.length}`; accuracyText.textContent = `${accuracy}%`;
-      correctCount.textContent = score; incorrectCount.textContent = quizData.length - score;
+      scoreText.textContent = `${score}/${quizData.length}`;
+      accuracyText.textContent = `${accuracy}%`;
+      correctCount.textContent = score;
+      incorrectCount.textContent = quizData.length - score;
       generateDetailedFeedback();
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -470,8 +343,9 @@ const baseQuizData = [
     function generateDetailedFeedback(){
       detailedFeedback.innerHTML = '';
       const incorrectAnswers = userAnswers.filter(a => a && !a.correct);
-      if(incorrectAnswers.length === 0){ feedbackSummary.textContent = 'Faultless.'; }
-      else{
+      if(incorrectAnswers.length === 0){
+        feedbackSummary.textContent = 'Faultless.';
+      } else {
         feedbackSummary.textContent = 'Review the items below to tighten your knowledge.';
         userAnswers.forEach((answer, index) => {
           if(answer && !answer.correct){
@@ -484,7 +358,7 @@ const baseQuizData = [
               <p class="font-bold text">${index + 1}. ${q.question}</p>
               <p class="mt-2 iconBad">Your answer: <span class="font-semibold">${selectedOption.text}</span></p>
               <p class="mt-1 icon-ok">Correct answer: <span class="font-semibold">${correctOption.text}</span></p>
-              <p class="mt-2 text-sm muted"><span class="font-semibold text">Explanation:</span> ${q.explanation}</p>`;
+              <p class="mt-2 text-sm muted"><span class="font-semibold text">Explanation:</span> ${q.explanation || ''}</p>`;
             detailedFeedback.appendChild(card);
           }
         });
@@ -494,7 +368,8 @@ const baseQuizData = [
     // === Keyboard controls ===
     // A/B/C/D/E -> answer; Shift + (A-E) -> discard; N -> next (only when enabled)
     document.addEventListener('keydown', (e) => {
-      // Block when results are shown
+      // Block when results are shown or quiz no iniciado
+      if(!quizArea || quizArea.classList.contains('hidden')) return;
       if(!questionArea || questionArea.classList.contains('hidden')) return;
 
       const key = e.key.toLowerCase();
@@ -519,8 +394,53 @@ const baseQuizData = [
     });
 
     navBtn.addEventListener('click', handleNavButtonClick);
-    restartBtn.addEventListener('click', startQuiz);
-    startQuiz();
+    restartBtn.addEventListener('click', () => {
+      // reinicia con las mismas preguntas ya cargadas
+      prepareQuizData();
+      startQuiz();
+    });
+
+    // Cargar preguntas desde el textarea
+    function parseQuestionsFromInput(){
+      const raw = questionsInput.value.trim();
+      if(!raw){
+        setupError.textContent = 'Pegue un arreglo de preguntas antes de comenzar.';
+        setupError.classList.remove('hidden');
+        return;
+      }
+
+      let parsed;
+      try {
+        // Si incluye una asignación tipo "const baseQuizData = [...]" o "let baseQuizData = [...]"
+        if(/baseQuizData\s*=/.test(raw)){
+          parsed = (new Function(raw + '\n; return baseQuizData;'))();
+        } else {
+          // Asumimos que es directamente un array: [...]
+          parsed = (new Function('return ' + raw))();
+        }
+      } catch(err){
+        console.error(err);
+        setupError.textContent = 'No pude interpretar el arreglo. Asegúrese de pegar un Array JS válido, como [ { question: "...", options: [...] }, ... ].';
+        setupError.classList.remove('hidden');
+        return;
+      }
+
+      if(!Array.isArray(parsed) || parsed.length === 0){
+        setupError.textContent = 'El arreglo debe ser un Array con al menos un objeto de pregunta.';
+        setupError.classList.remove('hidden');
+        return;
+      }
+
+      baseQuizData = parsed;
+      setupError.classList.add('hidden');
+
+      prepareQuizData();
+      setupArea.classList.add('hidden');
+      quizArea.classList.remove('hidden');
+      startQuiz();
+    }
+
+    loadQuizBtn.addEventListener('click', parseQuestionsFromInput);
   </script>
 </body>
 </html>
