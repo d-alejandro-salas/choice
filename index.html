@@ -1,446 +1,628 @@
 <!DOCTYPE html>
-<html lang="en-GB">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Mixed Quiz — Dynamic Question Set</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
+  
+  <!-- Tailwind CSS --><script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Fonts --><link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <style>
-    :root{
-      /* YOUR palette */
-      --mainColour: white;    
-      --secondColour: red;   
-      --borderColour: blue;    
 
-      --muted: #4b5563;
+  <style>
+    /* ENG: CSS Variables for easy theming (Original palette restored)
+      CAST: Variables CSS para cambiar el tema fácilmente (Paleta original restaurada)
+    */
+    :root {
+      --mainColour: white;      /* Original: White */
+      --secondColour: red;      /* Original: Red */
+      --borderColour: blue;     /* Original: Blue */
+      --muted: #4b5563;         /* Original: Muted gray */
+
+      /* ENG: New variables for consistency based on original palette
+        CAST: Nuevas variables para consistencia basadas en la paleta original */
+      --text-heading: var(--borderColour);
+      --text-secondary: var(--secondColour);
+      --text-default: #1f2937; /* A dark gray for general text */
+      --bg-body: var(--borderColour);
+      --bg-card: var(--mainColour);
     }
 
-    /* ===== Scroll & Low‑Vision Friendly Base ===== */
-    html{height:auto; min-height:100%}
-    body{height:auto; min-height:100%; overflow-y:auto; font-family:'Inter',sans-serif; background:var(--borderColour); font-size:clamp(16px, 1.1vw + 0.8rem, 20px);} 
-    .container{max-width:min(920px, 100%); width:100%; margin:2rem auto; background:var(--mainColour); border:2px solid var(--borderColour);} 
-    .paper{background:transparent;}    
-    .card{background:var(--mainColour); border:1px solid var(--borderColour);} 
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--bg-body); /* Original body background */
+      color: var(--text-default);
+      font-size: clamp(16px, 1.1vw + 0.8rem, 20px); /* Original font size */
+    }
 
-    .heading{color:var(--borderColour)}
-    .text{color:var(--secondColour)}
-    .muted{color:var(--muted)}
+    /* ENG: General container and paper styles (Restored from original)
+      CAST: Estilos generales del contenedor y "papel" (Restaurados del original)
+    */
+    .container {
+      max-width: min(920px, 100%);
+      width: 100%;
+      margin: 2rem auto;
+      background: var(--bg-card);
+      border: 2px solid var(--borderColour);
+      border-radius: 1rem; /* Added for consistency with original structure */
+    }
+    .paper { background: transparent; }
+    .card { background: var(--bg-card); border: 1px solid var(--borderColour); }
 
-    /* Progress */
+    /* ENG: Heading and Text colors (Restored from original)
+      CAST: Colores de encabezados y texto (Restaurados del original)
+    */
+    .heading { color: var(--text-heading); }
+    .text { color: var(--text-secondary); }
+    .muted { color: var(--muted); }
 
-    #quizHeader {border: 1px solid var(--borderColour);}    
-    .progressBar span{transition:background-color .3s ease}
-    .progressSegment {
-      flex: 1 1 0%;
-      height: clamp(14px, 1vw + 10px, 20px);
-      background: var(--mainColour);
+    /* ENG: Custom Progress Bar Segments (Adjusted to original palette)
+      CAST: Segmentos personalizados de la barra de progreso (Ajustados a la paleta original)
+    */
+    .progress-bar-segment {
+      height: clamp(14px, 1vw + 10px, 20px); /* Original height */
+      background-color: var(--mainColour);
       border: 2px solid var(--borderColour);
       border-radius: 5px;
-      box-sizing: border-box;
+      transition: background-color 0.3s ease;
     }
-    .dashOk{background:var(--borderColour)!important;border-color:var(--borderColour)!important}
-    .dashBad{background:var(--secondColour)!important;border-color:var(--secondColour)!important}
+    .progress-bar-segment.correct { background-color: var(--borderColour); border-color: var(--borderColour); }
+    .progress-bar-segment.incorrect { background-color: var(--secondColour); border-color: var(--secondColour); }
 
-    /* Key dots (no labels) */
-    .keyDot{width:clamp(12px,0.6vw+10px,16px);height:clamp(12px,0.6vw+10px,16px);display:inline-block;border:2px solid var(--borderColour);border-radius:4px}
-    .keyBad{background:var(--secondColour);border-color:var(--secondColour)}
-    .keyPending{background:#fff;border-color:var(--borderColour)}
-    .keyOk{background:var(--borderColour);border-color:var(--borderColour)}
+    /* ENG: Option Styles (Interactive items, adjusted to original palette)
+      CAST: Estilos de las opciones (Ítems interactivos, ajustados a la paleta original)
+    */
+    .option-card {
+      border: 1px solid var(--borderColour); /* Original border */
+      background: var(--secondColour); /* Original background */
+      transition: box-shadow .2s ease, border-color .2s ease, opacity .2s ease, filter .2s ease;
+      border-radius: 1rem;
+      padding: clamp(12px, 1.2vw + 8px, 22px);
+    }
+    
+    .option-card:hover:not(.disabled) {
+      box-shadow: 0 0 0 3px rgba(0,0,0,.06) inset;
+    }
 
-    /* Option tiles */
-    .option{border:1px solid var(--borderColour); background:var(--secondColour); transition:box-shadow .2s ease,border-color .2s ease, opacity .2s ease, filter .2s ease; border-radius:1rem; padding:clamp(12px, 1.2vw + 8px, 22px)}
-    .option:hover{box-shadow:0 0 0 3px rgba(0,0,0,.06) inset}
-    .option .optionText{color:#ffffff; font-size:clamp(1rem, 1.2vw + .6rem, 1.35rem)}
+    /* Focus accessibility */
+    .option-card:focus-visible {
+      outline: 3px solid var(--borderColour); /* Original outline */
+      outline-offset: 2px;
+    }
 
-    /* DESCARTE: bloquea la opción (deshabilita clics) pero NO la tacha */
-    .option.discarded{opacity:.45; pointer-events:none; filter:grayscale(.4)}
-    .option.discarded .optionText{text-decoration:none}
+    .option-card .option-text {
+        color: #ffffff; /* Original text color */
+        font-size: clamp(1rem, 1.2vw + .6rem, 1.35rem);
+    }
+    .option-card .label-letter {
+        color: #ffffff; /* Original label letter color */
+        font-weight: 700;
+        display: inline-block;
+        min-width: 1.4ch;
+        text-align: center;
+        margin-right: 1rem;
+    }
 
-    .option:focus{outline:3px solid var(--borderColour); outline-offset:2px}
+    /* ENG: State: Discarded (Shift + Click)
+      CAST: Estado: Descartado/Bloqueado (Shift + Click)
+    */
+    .option-card.discarded {
+      opacity: 0.45; /* Original opacity */
+      filter: grayscale(.4); /* Original grayscale */
+      pointer-events: none;
+    }
+    .option-card.discarded .option-text { text-decoration: none; } /* Original style */
 
-    /* ABCDE label — forced white; in feedback states we recolor if needed */
-    .labelLetter{color:#ffffff; font-weight:700; display:inline-block; min-width:1.4ch; text-align:center; margin-right:1rem}
+    /* ENG: Feedback States (After answering, adjusted to original palette)
+      CAST: Estados de Feedback (Después de responder, ajustados a la paleta original)
+    */
+    .feedback-mode .option-card { pointer-events: none; }
+    .feedback-mode .option-card:not(.is-correct):not(.is-wrong) { opacity: .7; } /* Original opacity for unselected */
 
-    .feedbackMode .option{pointer-events:none}
-    .feedbackMode .option:not(.correct):not(.incorrect){opacity:.7}
+    .feedback-mode .option-card.is-correct {
+      background: var(--mainColour); /* Original background */
+      border-color: var(--borderColour); /* Original border */
+    }
+    .feedback-mode .option-card.is-correct .option-text { color: var(--secondColour); } /* Original text color */
+    .feedback-mode .option-card.is-correct .label-letter { color: var(--borderColour); } /* Original label letter color */
 
-    /* Correct = bordered/outlined with BLUE; readable white tile switch */
-    .feedbackMode .option.correct{background:var(--mainColour); border-color:var(--borderColour)}
-    .feedbackMode .option.correct .optionText{color:var(--secondColour)}
-    .feedbackMode .option.correct .labelLetter{color:var(--borderColour)}
+    .feedback-mode .option-card.is-wrong {
+      background: var(--secondColour); /* Original background */
+      border-color: var(--secondColour); /* Original border */
+    }
+    .feedback-mode .option-card.is-wrong .option-text { color: #fff; } /* Original text color */
+    .feedback-mode .option-card.is-wrong .label-letter { color: #fff; } /* Original label letter color */
 
-    /* Incorrect */
-    .feedbackMode .option.incorrect{background:var(--secondColour); border-color:var(--secondColour)}
-    .feedbackMode .option.incorrect .optionText{color:#fff}
-    .feedbackMode .option.incorrect .labelLetter{color:#fff}
+    /* ENG: Feedback Icons (Correct/Incorrect)
+      CAST: Iconos de Feedback (Correcto/Incorrecto)
+    */
+    .feedback-icon { display: none; }
+    .feedback-mode .option-card.is-correct .feedback-icon.correct { display: inline-block; color: var(--borderColour); }
+    .feedback-mode .option-card.is-wrong .feedback-icon.incorrect { display: inline-block; color: #fff; }
 
-    .feedbackIcon{display:none}
-    .feedbackMode .option.correct .feedbackIcon.correct{display:inline-block; color:var(--borderColour)}
-    .feedbackMode .option.incorrect .feedbackIcon.incorrect{display:inline-block; color:#fff}
+    /* ENG: Discard Button Specifics (Redesigned as requested: red cross, white background, blue border)
+      CAST: Estilos específicos del botón de descarte (Rediseñado según solicitado: cruz roja, fondo blanco, borde azul)
+    */
+    .btn-discard {
+      background-color: var(--mainColour); /* White background */
+      color: var(--secondColour); /* Red cross */
+      border: 2px solid var(--borderColour); /* Blue border */
+      border-radius: 50%; /* Circular shape */
+      width: 2.2em; /* Ensure it's a good size */
+      height: 2.2em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem; /* Adjust font size for cross */
+      line-height: 1; /* Center the 'x' */
+      cursor: pointer;
+      transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+    }
+    .btn-discard:hover {
+      background-color: var(--secondColour); /* Red background on hover */
+      color: var(--mainColour); /* White cross on hover */
+    }
+    .option-card.discarded .btn-discard {
+        background-color: var(--borderColour); /* Blue when discarded */
+        color: var(--mainColour); /* White cross when discarded */
+    }
+    .option-card.discarded .btn-discard:hover {
+        background-color: var(--borderColour); /* Keep blue on hover when discarded */
+        color: var(--mainColour); /* Keep white cross on hover when discarded */
+    }
 
-    /* Buttons */
-    .btn{background:var(--mainColour); color:var(--secondColour); border:1px solid var(--borderColour); border-radius:1rem; transition:filter .2s ease; font-size:clamp(1rem, 1.2vw + .6rem, 1.35rem)}
-    .btn:hover{filter:brightness(1.05)}
-    .btn:disabled{opacity:.6; cursor:not-allowed}
+    /* ENG: Buttons (Restored from original)
+      CAST: Botones (Restaurados del original)
+    */
+    .btn {
+      background: var(--mainColour);
+      color: var(--secondColour);
+      border: 1px solid var(--borderColour);
+      border-radius: 1rem;
+      transition: filter .2s ease;
+      font-size: clamp(1rem, 1.2vw + .6rem, 1.35rem);
+    }
+    .btn:hover { filter: brightness(1.05); }
+    .btn:disabled { opacity: .6; cursor: not-allowed; }
 
-    /* Icons */
-    .icon-ok{color:var(--borderColour)}
-    .iconBad{color:var(--secondColour)}
-    .discardBtn{color:var(--mainColour)}
-
+    /* Media Queries */
     @media (max-width: 420px){
       .container{border-width:1.5px; margin:1rem auto}
-      .paper{border-width:1px}
     }
   </style>
 </head>
-<body class="flex flex-col items-center min-h-screen p-4">
-  <section class="container rounded-2xl shadow-xl p-4 sm:p-8" role="region" aria-label="Mixed quiz">
+<body class="min-h-screen flex flex-col items-center justify-center p-4">
 
-    <!-- SETUP: el usuario pega aquí su propio arreglo de preguntas -->
-    <div id="setupArea" class="paper rounded-xl p-4 sm:p-5 mb-6 text-center">
-      <h1 class="heading font-bold mb-4" style="font-size:clamp(1.4rem, 1.5vw + 1.1rem, 2.2rem)">Inserte aquí su arreglo</h1>
-      <textarea id="questionsInput" class="w-full border border-slate-300 rounded-lg p-2 text-xs font-mono h-52" placeholder="Pegue aquí su arreglo..."></textarea>
-      <p id="setupError" class="mt-2 text-sm text-red-600 hidden"></p>
-      <button id="loadQuizBtn" class="mt-4 w-full py-3 font-semibold btn" aria-label="Cargar preguntas y comenzar">Cargar</button class="mt-4 w-full py-3 font-semibold btn" aria-label="Cargar preguntas y comenzar">
-        Cargar preguntas y comenzar
+  <main class="container rounded-2xl shadow-xl p-4 sm:p-8">
+    
+    <!-- 
+      SECTION 1: SETUP AREA 
+      ENG: Area where user pastes the JSON/Array 
+      CAST: Área donde el usuario pega el JSON/Array
+    --><section id="setup-view" class="paper rounded-xl p-4 sm:p-5 mb-6 text-center">
+      <h1 class="heading font-bold mb-4" style="font-size:clamp(1.4rem, 1.5vw + 1.1rem, 2.2rem)">
+        Insert your Question Array
+      </h1>
+      <textarea id="input-data" 
+        class="w-full border border-gray-300 rounded-lg p-2 text-xs font-mono h-52 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none" 
+        placeholder='[ { "question": "Example?", "options": [...] } ]'></textarea>
+      
+      <p id="error-msg" class="mt-2 text-sm text-red-600 hidden"></p>
+      
+      <button id="btn-load" class="mt-4 w-full py-3 font-semibold btn" aria-label="Load questions and start">
+        Load & Start Quiz
       </button>
-    </div>
+    </section>
 
-    <!-- CONTENIDO DEL QUIZ (se muestra solo tras cargar las preguntas) -->
-    <div id="quizArea" class="hidden">
-      <div id="quizHeader" class="paper rounded-xl p-3 sm:p-4 mb-6">
+    <!-- 
+      SECTION 2: QUIZ INTERFACE 
+      ENG: The active quiz view (Hidden by default)
+      CAST: La vista activa del quiz (Oculta por defecto)
+    --><section id="quiz-view" class="hidden">
+      <!-- Header: Progress --><div id="quizHeader" class="paper rounded-xl p-3 sm:p-4 mb-6">
         <div class="flex items-center gap-3">
-          <div id="progressBar" class="progressBar flex-grow flex items-center gap-2" aria-label="Progress"></div>
-          <span id="progressText" class="font-semibold heading" aria-live="polite"></span>
+          <div id="progress-bar" class="progressBar flex-grow flex items-center gap-2" aria-label="Progress">
+            <!-- JS will inject segments here --></div>
+          <span id="progress-text" class="font-semibold heading" aria-live="polite"></span>
         </div>
       </div>
 
-      <div id="questionArea" class="paper rounded-xl p-4 sm:p-5">
-        <h2 id="questionTitle" class="heading font-bold mb-4" style="font-size:clamp(1.25rem, 1.4vw + 1rem, 2rem)"></h2>
-        <ul id="optionsContainer" class="space-y-3" role="listbox" aria-labelledby="questionTitle"></ul>
+      <!-- Question Content --><div id="questionArea" class="paper rounded-xl p-4 sm:p-5">
+        <h2 id="question-text" class="heading font-bold mb-4" style="font-size:clamp(1.25rem, 1.4vw + 1rem, 2rem)"></h2>
+        
+        <ul id="options-list" class="space-y-3" role="listbox" aria-labelledby="question-text">
+          <!-- JS will inject options here --></ul>
       </div>
 
-      <div id="resultsArea" class="hidden paper rounded-xl p-4 sm:p-5 mt-6">
-        <h2 class="text-center heading font-bold" style="font-size:clamp(1.5rem, 1.6vw + 1.2rem, 2.2rem)">Quiz Completed</h2>
-        <p class="text-center muted mb-6">Here are your results.</p>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center mb-8">
-          <div class="card p-4 rounded-lg">
-            <p class="muted" style="font-size:.95rem">Score</p>
-            <p id="scoreText" class="heading font-bold" style="font-size:clamp(1.4rem, 1.4vw + 1rem, 2rem)"></p>
-          </div>
-          <div class="card p-4 rounded-lg">
-            <p class="muted" style="font-size:.95rem">Accuracy</p>
-            <p id="accuracyText" class="heading font-bold" style="font-size:clamp(1.4rem, 1.4vw + 1rem, 2rem)"></p>
-          </div>
-          <div class="card p-4 rounded-lg">
-            <p class="muted" style="font-size:.95rem">Results</p>
-            <div class="heading font-bold" style="font-size:clamp(1.1rem, 1.2vw + .8rem, 1.6rem)">
-              <span id="correctCount"></span> / <span id="incorrectCount" class="text"></span>
-            </div>
-          </div>
-        </div>
-
-        <div id="feedbackContainer" class="card rounded-xl p-4">
-          <h3 class="heading font-bold mb-4" style="font-size:clamp(1.25rem, 1.4vw + 1rem, 1.75rem)">Review Your Answers</h3>
-          <p id="feedbackSummary" class="mb-6 muted"></p>
-          <div id="detailedFeedback" class="space-y-4"></div>
-        </div>
-
-        <button id="restartBtn" class="mt-8 w-full py-3 font-semibold btn" aria-label="Restart quiz">
-          Take Quiz Again
-        </button>
-      </div>
-
-      <div id="navContainer" class="mt-8 pt-2">
-        <button id="navBtn" class="w-full py-3 font-semibold btn" aria-label="Next question">
+      <!-- Footer: Navigation --><div id="navContainer" class="mt-8 pt-2">
+        <button id="btn-next" class="w-full py-3 font-semibold btn" aria-label="Next question">
           Next Question
         </button>
+        <p class="text-center text-xs text-gray-400 mt-3">
+          Keyboard: <strong>A-E</strong> to answer • <strong>Shift + A-E</strong> to discard • <strong>N</strong> for next
+        </p>
       </div>
-    </div>
-  </section>
+    </section>
+
+    <!-- 
+      SECTION 3: RESULTS 
+      ENG: Final summary
+      CAST: Resumen final
+    --><section id="results-view" class="hidden paper rounded-xl p-4 sm:p-5 mt-6">
+      <h2 class="text-center heading font-bold" style="font-size:clamp(1.5rem, 1.6vw + 1.2rem, 2.2rem)">
+        Quiz Completed!
+      </h2>
+      <p class="text-center muted mb-6">Here are your results.</p>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center mb-8">
+        <div class="card p-4 rounded-lg">
+          <p class="muted" style="font-size:.95rem">Score</p>
+          <p id="final-score" class="heading font-bold" style="font-size:clamp(1.4rem, 1.4vw + 1rem, 2rem)"></p>
+        </div>
+        <div class="card p-4 rounded-lg">
+          <p class="muted" style="font-size:.95rem">Accuracy</p>
+          <p id="final-accuracy" class="heading font-bold" style="font-size:clamp(1.4rem, 1.4vw + 1rem, 2rem)"></p>
+        </div>
+        <div class="card p-4 rounded-lg">
+          <p class="muted" style="font-size:.95rem">Results</p>
+          <div class="heading font-bold" style="font-size:clamp(1.1rem, 1.2vw + .8rem, 1.6rem)">
+            <span id="correct-count"></span> / <span id="incorrect-count" class="text"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Detailed Feedback Loop --><div id="feedback-container" class="card rounded-xl p-4">
+        <h3 class="heading font-bold mb-4" style="font-size:clamp(1.25rem, 1.4vw + 1rem, 1.75rem)">
+          Review Your Answers
+        </h3>
+        <p id="feedback-summary" class="mb-6 muted"></p>
+        <div id="feedback-list" class="space-y-4 max-h-96 overflow-y-auto pr-2"></div>
+      </div>
+
+      <button id="btn-restart" class="mt-8 w-full py-3 font-semibold btn" aria-label="Restart quiz">
+        Take Quiz Again
+      </button>
+    </section>
+
+  </main>
 
   <script>
-    // Utilities
-    function shuffle(arr){
-      const a = arr.slice();
-      for(let i=a.length-1;i>0;i--){
-        const j=Math.floor(Math.random()*(i+1));
-        [a[i],a[j]] = [a[j],a[i]];
-      }
-      return a;
-    }
+    /**
+     * QUIZ APPLICATION LOGIC
+     * ENG: Encapsulated logic to avoid global variable pollution.
+     * CAST: Lógica encapsulada para evitar contaminar variables globales.
+     */
+    const QuizApp = {
+      // State
+      questions: [],
+      currentIndex: 0,
+      score: 0,
+      userHistory: [], // Stores { selectedIndex, isCorrect } per question
 
-    // Data (se cargará dinámicamente desde el textarea)
-    let baseQuizData = [];
-    let quizData = [];
+      // DOM Elements Cache
+      ui: {
+        setupView: document.getElementById('setup-view'),
+        quizView: document.getElementById('quiz-view'),
+        resultsView: document.getElementById('results-view'),
+        inputData: document.getElementById('input-data'),
+        errorMsg: document.getElementById('error-msg'),
+        questionText: document.getElementById('question-text'),
+        optionsList: document.getElementById('options-list'),
+        progressBar: document.getElementById('progress-bar'),
+        progressText: document.getElementById('progress-text'),
+        btnNext: document.getElementById('btn-next'),
+        finalScore: document.getElementById('final-score'),
+        finalAccuracy: document.getElementById('final-accuracy'),
+        correctCount: document.getElementById('correct-count'),
+        incorrectCount: document.getElementById('incorrect-count'),
+        feedbackSummary: document.getElementById('feedback-summary'),
+        feedbackList: document.getElementById('feedback-list')
+      },
 
-    // Progress bar
-    function setupProgressBar(){
-      progressBar.innerHTML = '';
-      quizData.forEach(() => {
-        const barSegment = document.createElement('span');
-        barSegment.className = 'progressSegment';
-        progressBar.appendChild(barSegment);
-      });
-    }
-    function updateProgressBar(status){
-      const segment = progressBar.children[currentQuestionIndex];
-      if(!segment) return;
-      segment.classList.add(status === 'correct' ? 'dashOk' : 'dashBad');
-    }
+      /**
+       * ENG: Utility to shuffle arrays (Fisher-Yates)
+       * CAST: Utilidad para mezclar arrays (Fisher-Yates)
+       */
+      shuffle(array) {
+        const arr = [...array];
+        for (let i = arr.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
+      },
 
-    // Estado global del quiz
-    let currentQuestionIndex = 0;
-    let score = 0;
-    let userAnswers = [];
+      /**
+       * ENG: Load and Parse Data
+       * CAST: Cargar y procesar datos
+       */
+      loadData() {
+        const raw = this.ui.inputData.value.trim();
+        if (!raw) return this.showError('Please paste your data array first.');
 
-    // Elementos DOM
-    const setupArea = document.getElementById('setupArea');
-    const questionsInput = document.getElementById('questionsInput');
-    const setupError = document.getElementById('setupError');
-    const loadQuizBtn = document.getElementById('loadQuizBtn');
+        try {
+          // ENG: Try secure JSON parsing first, fallback to function eval for loose JS objects
+          // CAST: Intenta parseo JSON seguro primero, recurre a eval de función para objetos JS sueltos
+          let data;
+          try {
+            data = JSON.parse(raw);
+          } catch (e) {
+            data = new Function(`return ${raw}`)();
+          }
 
-    const quizArea = document.getElementById('quizArea');
-    const progressBar = document.getElementById('progressBar');
-    const progressText = document.getElementById('progressText');
-    const questionTitle = document.getElementById('questionTitle');
-    const optionsContainer = document.getElementById('optionsContainer');
-    const navBtn = document.getElementById('navBtn');
-    const questionArea = document.getElementById('questionArea');
-    const resultsArea = document.getElementById('resultsArea');
-    const scoreText = document.getElementById('scoreText');
-    const accuracyText = document.getElementById('accuracyText');
-    const correctCount = document.getElementById('correctCount');
-    const incorrectCount = document.getElementById('incorrectCount');
-    const restartBtn = document.getElementById('restartBtn');
-    const feedbackSummary = document.getElementById('feedbackSummary');
-    const detailedFeedback = document.getElementById('detailedFeedback');
+          if (!Array.isArray(data) || data.length === 0) throw new Error('Data is not a valid array.');
+          
+          // ENG: Prepare Data (Shuffle questions AND options)
+          // CAST: Preparar datos (Mezclar preguntas Y opciones)
+          this.questions = this.shuffle(data).map(q => ({
+            ...q,
+            options: this.shuffle(q.options)
+          }));
 
-    function prepareQuizData(){
-      quizData = shuffle(baseQuizData).map(q => ({ ...q, options: shuffle(q.options) }));
-    }
+          this.startQuiz();
+        } catch (err) {
+          console.error(err);
+          this.showError('Invalid data format. Ensure it is a valid Javascript Array.');
+        }
+      },
 
-    function startQuiz(){
-      currentQuestionIndex = 0;
-      score = 0;
-      userAnswers = Array(quizData.length).fill(null);
-      resultsArea.classList.add('hidden');
-      questionArea.classList.remove('hidden');
-      setupProgressBar();
-      showQuestion();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+      showError(msg) {
+        this.ui.errorMsg.textContent = msg;
+        this.ui.errorMsg.classList.remove('hidden');
+      },
 
-    function showQuestion(){
-      const currentQuestion = quizData[currentQuestionIndex];
-      progressText.textContent = `${currentQuestionIndex + 1} of ${quizData.length}`;
-      questionTitle.textContent = `${currentQuestionIndex + 1}. ${currentQuestion.question}`;
+      /**
+       * ENG: Initialize Quiz State
+       * CAST: Inicializar estado del Quiz
+       */
+      startQuiz() {
+        this.currentIndex = 0;
+        this.score = 0;
+        this.userHistory = new Array(this.questions.length).fill(null);
+        
+        this.ui.setupView.classList.add('hidden');
+        this.ui.resultsView.classList.add('hidden');
+        this.ui.quizView.classList.remove('hidden');
+        this.ui.errorMsg.classList.add('hidden');
 
-      optionsContainer.innerHTML = '';
-      optionsContainer.classList.remove('feedbackMode');
+        this.renderProgressBar();
+        this.renderQuestion();
+      },
 
-      currentQuestion.options.forEach((option, index) => {
-        const li = document.createElement('li');
-        li.className = 'option flex items-center justify-between cursor-pointer';
-        li.tabIndex = 0; // keyboard focus
-        li.dataset.index = index;
-        li.setAttribute('role','option');
-        li.setAttribute('aria-selected','false');
-        li.innerHTML = `
-          <div class="flex items-center">
-            <span class="labelLetter">${String.fromCharCode(65 + index)}</span>
-            <span class="optionText">${option.text}</span>
-          </div>
-          <div class="flex items-center">
-            <span class="feedbackIcon correct font-bold mr-2 icon-ok" aria-hidden="true">✔</span>
-            <span class="feedbackIcon incorrect font-bold mr-2 iconBad" aria-hidden="true">✘</span>
-            <button class="discardBtn font-bold text-2xl leading-none px-2 rounded-full transition" title="Bloquear opción" aria-label="Bloquear opción">&times;</button>
-          </div>`;
-        optionsContainer.appendChild(li);
-      });
+      /**
+       * ENG: Render Progress Bar (Segments)
+       * CAST: Renderizar Barra de Progreso (Segmentos)
+       */
+      renderProgressBar() {
+        this.ui.progressBar.innerHTML = '';
+        this.questions.forEach((_, idx) => {
+          const seg = document.createElement('div');
+          seg.className = 'progress-bar-segment flex-1';
+          seg.id = `prog-${idx}`;
+          this.ui.progressBar.appendChild(seg);
+        });
+      },
 
-      navBtn.disabled = true;
-      navBtn.textContent = (currentQuestionIndex === quizData.length - 1) ? 'View Results' : 'Next Question';
-      attachOptionListeners();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+      updateProgressDot(status) {
+        const dot = document.getElementById(`prog-${this.currentIndex}`);
+        if (dot) dot.classList.add(status);
+      },
 
-    function attachOptionListeners(){
-      optionsContainer.querySelectorAll('.option').forEach(optionEl => {
-        optionEl.addEventListener('click', (e) => {
-          const discardBtnEl = e.target.closest('.discardBtn');
-          if(discardBtnEl){
-            e.stopPropagation();
-            optionEl.classList.toggle('discarded'); // bloquea / desbloquea
-          } else {
-            handleAnswer(parseInt(optionEl.dataset.index, 10));
+      /**
+       * ENG: Display Current Question
+       * CAST: Mostrar pregunta actual
+       */
+      renderQuestion() {
+        const q = this.questions[this.currentIndex];
+        
+        // Update Header
+        this.ui.progressText.textContent = `${this.currentIndex + 1} of ${this.questions.length}`;
+        this.ui.questionText.textContent = `${this.currentIndex + 1}. ${q.question}`;
+        
+        // Reset Button
+        this.ui.btnNext.disabled = true;
+        this.ui.btnNext.textContent = (this.currentIndex === this.questions.length - 1) ? 'View Results' : 'Next Question';
+        
+        // Clear & Render Options
+        this.ui.optionsList.innerHTML = '';
+        this.ui.optionsList.classList.remove('feedback-mode');
+
+        q.options.forEach((opt, idx) => {
+          const li = document.createElement('li');
+          li.className = 'option-card flex items-center justify-between cursor-pointer';
+          li.tabIndex = 0;
+          li.dataset.index = idx;
+          li.setAttribute('role','option');
+          li.setAttribute('aria-selected','false');
+          
+          // Letter Label (A, B, C...)
+          const letter = String.fromCharCode(65 + idx);
+          
+          li.innerHTML = `
+            <div class="flex items-center">
+              <span class="label-letter">${letter}</span>
+              <span class="option-text">${opt.text}</span>
+            </div>
+            <div class="flex items-center">
+              <span class="feedback-icon correct font-bold mr-2" aria-hidden="true">✔</span>
+              <span class="feedback-icon incorrect font-bold mr-2" aria-hidden="true">✘</span>
+              <button class="btn-discard font-bold" title="Bloquear opción" aria-label="Bloquear opción">&times;</button>
+            </div>
+          `;
+
+          // ENG: Event Listeners
+          li.addEventListener('click', (e) => {
+            const discardBtnEl = e.target.closest('.btn-discard');
+            if (discardBtnEl) {
+              e.stopPropagation(); // Prevent answering
+              this.toggleDiscard(li);
+            } else {
+              this.handleAnswer(idx);
+            }
+          });
+          
+          // Keyboard Enter Support
+          li.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              this.handleAnswer(idx);
+            }
+          });
+
+          this.ui.optionsList.appendChild(li);
+        });
+
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      },
+
+      toggleDiscard(element) {
+        if (this.ui.optionsList.classList.contains('feedback-mode')) return;
+        element.classList.toggle('discarded');
+      },
+
+      /**
+       * ENG: Process User Answer
+       * CAST: Procesar respuesta del usuario
+       */
+      handleAnswer(selectedIndex) {
+        if (this.ui.optionsList.classList.contains('feedback-mode')) return; // Prevent double click
+
+        const q = this.questions[this.currentIndex];
+        const isCorrect = q.options[selectedIndex].correct;
+        
+        // Record history
+        this.userHistory[this.currentIndex] = { selectedIndex, isCorrect };
+        
+        if (isCorrect) {
+          this.score++;
+          this.updateProgressDot('correct');
+        } else {
+          this.updateProgressDot('incorrect');
+        }
+
+        // UI Feedback
+        this.ui.optionsList.classList.add('feedback-mode');
+        const domOptions = Array.from(this.ui.optionsList.children);
+
+        domOptions.forEach((el, idx) => {
+          const optData = q.options[idx];
+          
+          if (optData.correct) {
+            el.classList.add('is-correct'); // Always show correct one
+          } 
+          if (idx === selectedIndex && !optData.correct) {
+            el.classList.add('is-wrong'); // Show user error
           }
         });
-        optionEl.addEventListener('keydown', (e) => {
-          if(e.key === 'Enter' || e.key === ' '){
-            e.preventDefault();
-            handleAnswer(parseInt(optionEl.dataset.index, 10));
-          }
-        });
-      });
-    }
 
-    function handleAnswer(selectedIndex){
-      // prevent double-answering
-      if(optionsContainer.classList.contains('feedbackMode')) return;
+        // Enable Next Button
+        this.ui.btnNext.disabled = false;
+        this.ui.btnNext.focus();
+      },
 
-      const q = quizData[currentQuestionIndex];
-      const isCorrect = q.options[selectedIndex].correct;
-      userAnswers[currentQuestionIndex] = { selectedIndex, correct: isCorrect };
-      if(isCorrect){
-        score++;
-        updateProgressBar('correct');
-      } else {
-        updateProgressBar('incorrect');
+      nextQuestion() {
+        this.currentIndex++;
+        if (this.currentIndex < this.questions.length) {
+          this.renderQuestion();
+        } else {
+          this.showResults();
+        }
+      },
+
+      /**
+       * ENG: Show Final Results
+       * CAST: Mostrar resultados finales
+       */
+      showResults() {
+        this.ui.quizView.classList.add('hidden');
+        this.ui.resultsView.classList.remove('hidden');
+
+        // Stats
+        const accuracy = Math.round((this.score / this.questions.length) * 100);
+        this.ui.finalScore.textContent = `${this.score} / ${this.questions.length}`;
+        this.ui.finalAccuracy.textContent = `${accuracy}%`;
+        this.ui.correctCount.textContent = this.score;
+        this.ui.incorrectCount.textContent = this.questions.length - this.score;
+
+        // Detailed Feedback Generation
+        this.ui.feedbackList.innerHTML = '';
+        
+        const incorrectAnswers = this.userHistory.filter(h => h && !h.isCorrect);
+        
+        if (incorrectAnswers.length === 0) {
+          this.ui.feedbackSummary.textContent = 'Faultless.';
+          this.ui.feedbackList.innerHTML = ''; // Clear previous if any
+        } else {
+          this.ui.feedbackSummary.textContent = 'Review the items below to tighten your knowledge.';
+          this.userHistory.forEach((answer, index) => {
+            if(answer && !answer.isCorrect){ // Only show if answered and incorrect
+              const q = this.questions[index];
+              const correctOption = q.options.find(o => o.correct);
+              const selectedOption = q.options[answer.selectedIndex];
+
+              const card = document.createElement('div');
+              card.className = 'card p-4 rounded-lg'; // Reusing original .card class
+              card.innerHTML = `
+                <p class="font-bold text-secondary">${index + 1}. ${q.question}</p>
+                <p class="mt-2 text-secondary">Your answer: <span class="font-semibold">${selectedOption.text}</span></p>
+                <p class="mt-1 text-heading">Correct answer: <span class="font-semibold">${correctOption.text}</span></p>
+                ${q.explanation ? `<p class="mt-2 text-sm muted"><span class="font-semibold text">Explanation:</span> ${q.explanation}</p>` : ''}
+              `;
+              this.ui.feedbackList.appendChild(card);
+            }
+          });
+        }
+        window.scrollTo(0, 0);
       }
+    };
 
-      optionsContainer.classList.add('feedbackMode');
-      const options = optionsContainer.querySelectorAll('.option');
-      options.forEach((opt, idx) => {
-        const optionData = q.options[idx];
-        if(optionData.correct) opt.classList.add('correct');
-        else if(idx === selectedIndex) opt.classList.add('incorrect');
-      });
+    // --- EVENT LISTENERS ---
 
-      navBtn.disabled = false;
-    }
+    // 1. Load Button
+    document.getElementById('btn-load').addEventListener('click', () => QuizApp.loadData());
 
-    function toggleDiscard(index){
-      const optionEl = optionsContainer.children[index];
-      if(!optionEl) return;
-      // allow discarding only before answering
-      if(optionsContainer.classList.contains('feedbackMode')) return;
-      optionEl.classList.toggle('discarded');
-    }
+    // 2. Next Button
+    document.getElementById('btn-next').addEventListener('click', () => QuizApp.nextQuestion());
 
-    function handleNavButtonClick(){
-      currentQuestionIndex++;
-      if(currentQuestionIndex < quizData.length) showQuestion();
-      else showResults();
-    }
+    // 3. Restart Button
+    document.getElementById('btn-restart').addEventListener('click', () => {
+      // Shuffle again for variety? Yes.
+      // CAST: ¿Mezclar de nuevo para variedad? Sí.
+      QuizApp.questions = QuizApp.shuffle(QuizApp.questions).map(q => ({ ...q, options: QuizApp.shuffle(q.options) }));
+      QuizApp.startQuiz();
+    });
 
-    function showResults(){
-      questionArea.classList.add('hidden');
-      resultsArea.classList.remove('hidden');
-      const accuracy = Math.round((score / quizData.length) * 100);
-      scoreText.textContent = `${score}/${quizData.length}`;
-      accuracyText.textContent = `${accuracy}%`;
-      correctCount.textContent = score;
-      incorrectCount.textContent = quizData.length - score;
-      generateDetailedFeedback();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-
-    function generateDetailedFeedback(){
-      detailedFeedback.innerHTML = '';
-      const incorrectAnswers = userAnswers.filter(a => a && !a.correct);
-      if(incorrectAnswers.length === 0){
-        feedbackSummary.textContent = 'Faultless.';
-      } else {
-        feedbackSummary.textContent = 'Review the items below to tighten your knowledge.';
-        userAnswers.forEach((answer, index) => {
-          if(answer && !answer.correct){
-            const q = quizData[index];
-            const correctOption = q.options.find(o => o.correct);
-            const selectedOption = q.options[answer.selectedIndex];
-            const card = document.createElement('div');
-            card.className = 'card p-4 rounded-lg';
-            card.innerHTML = `
-              <p class="font-bold text">${index + 1}. ${q.question}</p>
-              <p class="mt-2 iconBad">Your answer: <span class="font-semibold">${selectedOption.text}</span></p>
-              <p class="mt-1 icon-ok">Correct answer: <span class="font-semibold">${correctOption.text}</span></p>
-              <p class="mt-2 text-sm muted"><span class="font-semibold text">Explanation:</span> ${q.explanation || ''}</p>`;
-            detailedFeedback.appendChild(card);
-          }
-        });
-      }
-    }
-
-    // === Keyboard controls ===
-    // A/B/C/D/E -> answer; Shift + (A-E) -> discard; N -> next (only when enabled)
+    // 4. Global Keyboard Shortcuts
     document.addEventListener('keydown', (e) => {
-      // Block when results are shown or quiz no iniciado
-      if(!quizArea || quizArea.classList.contains('hidden')) return;
-      if(!questionArea || questionArea.classList.contains('hidden')) return;
+      // Only valid if Quiz View is active
+      if (QuizApp.ui.quizView.classList.contains('hidden')) return;
 
       const key = e.key.toLowerCase();
       const letters = ['a','b','c','d','e'];
 
-      if(letters.includes(key)){
-        const idx = key.charCodeAt(0) - 97; // a=0
-        if(idx < optionsContainer.children.length){
-          if(e.shiftKey){
-            // toggle discard before answering
-            e.preventDefault();
-            toggleDiscard(idx);
+      // A-E logic
+      if (letters.includes(key)) {
+        const idx = letters.indexOf(key);
+        const options = QuizApp.ui.optionsList.children;
+        
+        if (idx < options.length) {
+          e.preventDefault();
+          if (e.shiftKey) {
+            QuizApp.toggleDiscard(options[idx]);
           } else {
-            e.preventDefault();
-            handleAnswer(idx);
+            QuizApp.handleAnswer(idx);
           }
         }
-      } else if(key === 'n'){
-        e.preventDefault();
-        if(!navBtn.disabled){ handleNavButtonClick(); }
       }
-    });
-
-    navBtn.addEventListener('click', handleNavButtonClick);
-    restartBtn.addEventListener('click', () => {
-      // reinicia con las mismas preguntas ya cargadas
-      prepareQuizData();
-      startQuiz();
-    });
-
-    // Cargar preguntas desde el textarea
-    function parseQuestionsFromInput(){
-      const raw = questionsInput.value.trim();
-      if(!raw){
-        setupError.textContent = 'Pegue un arreglo de preguntas antes de comenzar.';
-        setupError.classList.remove('hidden');
-        return;
-      }
-
-      let parsed;
-      try {
-        // Si incluye una asignación tipo "const baseQuizData = [...]" o "let baseQuizData = [...]"
-        if(/baseQuizData\s*=/.test(raw)){
-          parsed = (new Function(raw + '\n; return baseQuizData;'))();
-        } else {
-          // Asumimos que es directamente un array: [...]
-          parsed = (new Function('return ' + raw))();
+      // 'N' for Next
+      else if (key === 'n') {
+        if (!QuizApp.ui.btnNext.disabled) {
+          QuizApp.nextQuestion();
         }
-      } catch(err){
-        console.error(err);
-        setupError.textContent = 'No pude interpretar el arreglo. Asegúrese de pegar un Array JS válido, como [ { question: "...", options: [...] }, ... ].';
-        setupError.classList.remove('hidden');
-        return;
       }
-
-      if(!Array.isArray(parsed) || parsed.length === 0){
-        setupError.textContent = 'El arreglo debe ser un Array con al menos un objeto de pregunta.';
-        setupError.classList.remove('hidden');
-        return;
-      }
-
-      baseQuizData = parsed;
-      setupError.classList.add('hidden');
-
-      prepareQuizData();
-      setupArea.classList.add('hidden');
-      quizArea.classList.remove('hidden');
-      startQuiz();
-    }
-
-    loadQuizBtn.addEventListener('click', parseQuestionsFromInput);
+    });
   </script>
 </body>
 </html>
