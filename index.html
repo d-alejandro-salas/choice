@@ -207,7 +207,23 @@
       </h1>
       <textarea id="input-data" 
         class="w-full border border-gray-300 rounded-lg p-2 text-xs font-mono h-52 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none" 
-        placeholder='[ { "question": "Example?", "options": [...] } ]'></textarea>
+        placeholder='[
+  {
+    question: "Insert your question text here",
+    options: [
+      { text: "Option 1", correct: true },
+      { text: "Option 2", correct: false },
+      { text: "Option 3", correct: false },
+      { text: "Option 4", correct: false },
+      { text: "Option 5", correct: false }
+      // You may add or remove options as the design requires
+    ],
+    explanation: "Insert here the detailed explanation of why the correct option is correct."
+  },
+
+  // … repeat the same object structure for each additional question …
+]
+'></textarea>
       
       <p id="error-msg" class="mt-2 text-sm text-red-600 hidden"></p>
       
