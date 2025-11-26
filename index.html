@@ -115,6 +115,7 @@
     }
     .option-card.discarded .option-text { text-decoration: none; } /* Original style */
 
+
     /* ENG: Feedback States (After answering, adjusted to original palette)
       CAST: Estados de Feedback (Después de responder, ajustados a la paleta original)
     */
@@ -127,6 +128,7 @@
     }
     .feedback-mode .option-card.is-correct .option-text { color: var(--secondColour); } /* Original text color */
     .feedback-mode .option-card.is-correct .label-letter { color: var(--borderColour); } /* Original label letter color */
+
 
     .feedback-mode .option-card.is-wrong {
       background: var(--secondColour); /* Original background */
@@ -187,9 +189,37 @@
     .btn:hover { filter: brightness(1.05); }
     .btn:disabled { opacity: .6; cursor: not-allowed; }
 
+    /* Timer Animation */
+    @keyframes pulse-red {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .timer-low {
+      color: var(--secondColour);
+      animation: pulse-red 1s infinite;
+    }
+
     /* Media Queries */
     @media (max-width: 420px){
       .container{border-width:1.5px; margin:1rem auto}
+    }
+
+    /* ENG: Developer Footer Styles
+       CAST: Estilos del Footer del Desarrollador */
+    .dev-footer {
+      /* Resetting fixed position to flow */
+      margin-top: 2rem;
+      width: 100%;
+      max-width: min(920px, 100%); /* Align width with main container */
+      text-align: center;
+      padding: 1rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+      
+      /* Visual flair consistent with theme */
+      border-top: 2px solid var(--borderColour);
+      background-color: var(--mainColour);
+      border-radius: 1rem;
     }
   </style>
 </head>
@@ -206,25 +236,17 @@
         Insert your Question Array
       </h1>
       <textarea id="input-data" 
-        class="w-full border border-gray-300 rounded-lg p-2 text-xs font-mono h-52 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none" 
-        placeholder='[
-  {
-    question: "Insert your question text here",
-    options: [
-      { text: "Option 1", correct: true },
-      { text: "Option 2", correct: false },
-      { text: "Option 3", correct: false },
-      { text: "Option 4", correct: false },
-      { text: "Option 5", correct: false }
-      // You may add or remove options as the design requires
-    ],
-    explanation: "Insert here the detailed explanation of why the correct option is correct."
-  },
-
-  // … repeat the same object structure for each additional question …
-]
-'></textarea>
+        class="w-full border border-gray-300 rounded-lg p-2 text-xs font-mono h-40 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none" 
+        placeholder='[ { "question": "Example?", "options": [...] } ]'></textarea>
       
+      <!-- Timer Configuration -->
+      <div class="mt-4 flex flex-col sm:flex-row items-center justify-center gap-2 text-sm">
+        <label for="timer-input" class="font-semibold text-gray-600">Timer per question (seconds):</label>
+        <input type="number" id="timer-input" 
+          class="border border-gray-300 rounded p-2 w-24 text-center text-lg font-bold text-blue-600 focus:ring-2 focus:ring-blue-500 outline-none" 
+          value="60" min="5" max="600">
+      </div>
+
       <p id="error-msg" class="mt-2 text-sm text-red-600 hidden"></p>
       
       <button id="btn-load" class="mt-4 w-full py-3 font-semibold btn" aria-label="Load questions and start">
@@ -237,11 +259,18 @@
       ENG: The active quiz view (Hidden by default)
       CAST: La vista activa del quiz (Oculta por defecto)
     --><section id="quiz-view" class="hidden">
-      <!-- Header: Progress --><div id="quizHeader" class="paper rounded-xl p-3 sm:p-4 mb-6">
-        <div class="flex items-center gap-3">
-          <div id="progress-bar" class="progressBar flex-grow flex items-center gap-2" aria-label="Progress">
-            <!-- JS will inject segments here --></div>
+      <!-- Header: Progress & Timer -->
+      <div id="quizHeader" class="paper rounded-xl p-3 sm:p-4 mb-6">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2">
+            <span class="text-xl">⏱️</span>
+            <span id="timer-display" class="font-bold text-xl heading font-mono">60s</span>
+          </div>
           <span id="progress-text" class="font-semibold heading" aria-live="polite"></span>
+        </div>
+        
+        <div id="progress-bar" class="progressBar flex items-center gap-2" aria-label="Progress">
+          <!-- JS will inject segments here -->
         </div>
       </div>
 
@@ -304,6 +333,15 @@
 
   </main>
 
+  <!-- Developer Footer -->
+  <footer class="dev-footer">
+    <p>
+      Web Developer Daniel Alejandro, contrataciones: 
+      <a href="mailto:daniel.salas@bue.edu.ar" class="text-blue-600 hover:underline">daniel.salas@bue.edu.ar</a>. 
+      © All rights reserved <span id="yearPlaceholder"></span>.
+    </p>
+  </footer>
+
   <script>
     /**
      * QUIZ APPLICATION LOGIC
@@ -315,7 +353,12 @@
       questions: [],
       currentIndex: 0,
       score: 0,
-      userHistory: [], // Stores { selectedIndex, isCorrect } per question
+      userHistory: [], // Stores { selectedIndex, isCorrect, timedOut }
+      
+      // Timer State
+      timerSettings: { duration: 60 },
+      timeLeft: 60,
+      timerInterval: null,
 
       // DOM Elements Cache
       ui: {
@@ -323,11 +366,15 @@
         quizView: document.getElementById('quiz-view'),
         resultsView: document.getElementById('results-view'),
         inputData: document.getElementById('input-data'),
+        timerInput: document.getElementById('timer-input'),
         errorMsg: document.getElementById('error-msg'),
+        
         questionText: document.getElementById('question-text'),
         optionsList: document.getElementById('options-list'),
         progressBar: document.getElementById('progress-bar'),
         progressText: document.getElementById('progress-text'),
+        timerDisplay: document.getElementById('timer-display'),
+        
         btnNext: document.getElementById('btn-next'),
         finalScore: document.getElementById('final-score'),
         finalAccuracy: document.getElementById('final-accuracy'),
@@ -356,6 +403,10 @@
        */
       loadData() {
         const raw = this.ui.inputData.value.trim();
+        // Set Timer Duration from Input
+        const timerVal = parseInt(this.ui.timerInput.value, 10);
+        this.timerSettings.duration = (timerVal && timerVal > 0) ? timerVal : 60;
+
         if (!raw) return this.showError('Please paste your data array first.');
 
         try {
@@ -427,6 +478,58 @@
       },
 
       /**
+       * ENG: Timer Logic
+       * CAST: Lógica del Temporizador
+       */
+      startTimer() {
+        clearInterval(this.timerInterval);
+        this.timeLeft = this.timerSettings.duration;
+        this.updateTimerDisplay();
+
+        this.timerInterval = setInterval(() => {
+          this.timeLeft--;
+          this.updateTimerDisplay();
+
+          if (this.timeLeft <= 0) {
+            this.handleTimeout();
+          }
+        }, 1000);
+      },
+
+      updateTimerDisplay() {
+        this.ui.timerDisplay.textContent = `${this.timeLeft}s`;
+        if (this.timeLeft <= 10) {
+          this.ui.timerDisplay.classList.add('timer-low');
+        } else {
+          this.ui.timerDisplay.classList.remove('timer-low');
+        }
+      },
+
+      handleTimeout() {
+        clearInterval(this.timerInterval);
+        
+        // Record as incorrect (Time Out)
+        this.userHistory[this.currentIndex] = { selectedIndex: -1, isCorrect: false, timedOut: true };
+        this.updateProgressDot('incorrect');
+
+        // Show Feedback
+        this.ui.optionsList.classList.add('feedback-mode');
+        this.ui.questionText.innerHTML += ' <span style="color:var(--secondColour)">(Time Out!)</span>';
+        
+        const q = this.questions[this.currentIndex];
+        const domOptions = Array.from(this.ui.optionsList.children);
+
+        domOptions.forEach((el, idx) => {
+          const optData = q.options[idx];
+          if (optData.correct) {
+            el.classList.add('is-correct'); // Reveal correct
+          }
+        });
+
+        this.ui.btnNext.disabled = false;
+      },
+
+      /**
        * ENG: Display Current Question
        * CAST: Mostrar pregunta actual
        */
@@ -437,11 +540,9 @@
         this.ui.progressText.textContent = `${this.currentIndex + 1} of ${this.questions.length}`;
         this.ui.questionText.textContent = `${this.currentIndex + 1}. ${q.question}`;
         
-        // Reset Button
+        // Reset UI
         this.ui.btnNext.disabled = true;
         this.ui.btnNext.textContent = (this.currentIndex === this.questions.length - 1) ? 'View Results' : 'Next Question';
-        
-        // Clear & Render Options
         this.ui.optionsList.innerHTML = '';
         this.ui.optionsList.classList.remove('feedback-mode');
 
@@ -453,7 +554,6 @@
           li.setAttribute('role','option');
           li.setAttribute('aria-selected','false');
           
-          // Letter Label (A, B, C...)
           const letter = String.fromCharCode(65 + idx);
           
           li.innerHTML = `
@@ -468,18 +568,17 @@
             </div>
           `;
 
-          // ENG: Event Listeners
+          // Listeners
           li.addEventListener('click', (e) => {
             const discardBtnEl = e.target.closest('.btn-discard');
             if (discardBtnEl) {
-              e.stopPropagation(); // Prevent answering
+              e.stopPropagation();
               this.toggleDiscard(li);
             } else {
               this.handleAnswer(idx);
             }
           });
           
-          // Keyboard Enter Support
           li.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' || e.key === ' ') {
               e.preventDefault();
@@ -491,6 +590,7 @@
         });
 
         window.scrollTo({ top: 0, behavior: 'smooth' });
+        this.startTimer(); // Start countdown
       },
 
       toggleDiscard(element) {
@@ -503,13 +603,15 @@
        * CAST: Procesar respuesta del usuario
        */
       handleAnswer(selectedIndex) {
-        if (this.ui.optionsList.classList.contains('feedback-mode')) return; // Prevent double click
+        if (this.ui.optionsList.classList.contains('feedback-mode')) return; 
+
+        clearInterval(this.timerInterval); // STOP TIMER
 
         const q = this.questions[this.currentIndex];
         const isCorrect = q.options[selectedIndex].correct;
         
         // Record history
-        this.userHistory[this.currentIndex] = { selectedIndex, isCorrect };
+        this.userHistory[this.currentIndex] = { selectedIndex, isCorrect, timedOut: false };
         
         if (isCorrect) {
           this.score++;
@@ -526,19 +628,19 @@
           const optData = q.options[idx];
           
           if (optData.correct) {
-            el.classList.add('is-correct'); // Always show correct one
+            el.classList.add('is-correct'); 
           } 
           if (idx === selectedIndex && !optData.correct) {
-            el.classList.add('is-wrong'); // Show user error
+            el.classList.add('is-wrong'); 
           }
         });
 
-        // Enable Next Button
         this.ui.btnNext.disabled = false;
         this.ui.btnNext.focus();
       },
 
       nextQuestion() {
+        clearInterval(this.timerInterval); // Safety clear
         this.currentIndex++;
         if (this.currentIndex < this.questions.length) {
           this.renderQuestion();
@@ -552,6 +654,7 @@
        * CAST: Mostrar resultados finales
        */
       showResults() {
+        clearInterval(this.timerInterval); // Ensure stopped
         this.ui.quizView.classList.add('hidden');
         this.ui.resultsView.classList.remove('hidden');
 
@@ -562,6 +665,7 @@
         this.ui.correctCount.textContent = this.score;
         this.ui.incorrectCount.textContent = this.questions.length - this.score;
 
+
         // Detailed Feedback Generation
         this.ui.feedbackList.innerHTML = '';
         
@@ -569,20 +673,28 @@
         
         if (incorrectAnswers.length === 0) {
           this.ui.feedbackSummary.textContent = 'Faultless.';
-          this.ui.feedbackList.innerHTML = ''; // Clear previous if any
+          this.ui.feedbackList.innerHTML = ''; 
         } else {
           this.ui.feedbackSummary.textContent = 'Review the items below to tighten your knowledge.';
           this.userHistory.forEach((answer, index) => {
-            if(answer && !answer.isCorrect){ // Only show if answered and incorrect
+            if(answer && !answer.isCorrect){
               const q = this.questions[index];
               const correctOption = q.options.find(o => o.correct);
-              const selectedOption = q.options[answer.selectedIndex];
+              
+              // Handle Timed Out vs Wrong Selection
+              let userText = '';
+              if (answer.timedOut) {
+                userText = '<span style="color:var(--secondColour); font-style:italic">Time Out (No answer)</span>';
+              } else {
+                const selectedOption = q.options[answer.selectedIndex];
+                userText = `<span class="font-semibold">${selectedOption.text}</span>`;
+              }
 
               const card = document.createElement('div');
-              card.className = 'card p-4 rounded-lg'; // Reusing original .card class
+              card.className = 'card p-4 rounded-lg'; 
               card.innerHTML = `
                 <p class="font-bold text-secondary">${index + 1}. ${q.question}</p>
-                <p class="mt-2 text-secondary">Your answer: <span class="font-semibold">${selectedOption.text}</span></p>
+                <p class="mt-2 text-secondary">Your answer: ${userText}</p>
                 <p class="mt-1 text-heading">Correct answer: <span class="font-semibold">${correctOption.text}</span></p>
                 ${q.explanation ? `<p class="mt-2 text-sm muted"><span class="font-semibold text">Explanation:</span> ${q.explanation}</p>` : ''}
               `;
@@ -596,29 +708,21 @@
 
     // --- EVENT LISTENERS ---
 
-    // 1. Load Button
     document.getElementById('btn-load').addEventListener('click', () => QuizApp.loadData());
 
-    // 2. Next Button
     document.getElementById('btn-next').addEventListener('click', () => QuizApp.nextQuestion());
 
-    // 3. Restart Button
     document.getElementById('btn-restart').addEventListener('click', () => {
-      // Shuffle again for variety? Yes.
-      // CAST: ¿Mezclar de nuevo para variedad? Sí.
       QuizApp.questions = QuizApp.shuffle(QuizApp.questions).map(q => ({ ...q, options: QuizApp.shuffle(q.options) }));
       QuizApp.startQuiz();
     });
 
-    // 4. Global Keyboard Shortcuts
     document.addEventListener('keydown', (e) => {
-      // Only valid if Quiz View is active
       if (QuizApp.ui.quizView.classList.contains('hidden')) return;
 
       const key = e.key.toLowerCase();
       const letters = ['a','b','c','d','e'];
 
-      // A-E logic
       if (letters.includes(key)) {
         const idx = letters.indexOf(key);
         const options = QuizApp.ui.optionsList.children;
@@ -632,11 +736,17 @@
           }
         }
       }
-      // 'N' for Next
       else if (key === 'n') {
         if (!QuizApp.ui.btnNext.disabled) {
           QuizApp.nextQuestion();
         }
+      }
+    });
+
+    document.addEventListener("DOMContentLoaded", function() {
+      const yearPlaceholder = document.getElementById("yearPlaceholder");
+      if (yearPlaceholder) {
+        yearPlaceholder.textContent = new Date().getFullYear();
       }
     });
   </script>
