@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Mixed Quiz — Dynamic Question Set</title>
+  <title>Mixed Quiz — AI Powered</title>
   
   <!-- Tailwind CSS --><script src="https://cdn.tailwindcss.com"></script>
   
@@ -198,6 +198,19 @@
       color: var(--secondColour);
       animation: pulse-red 1s infinite;
     }
+    
+    /* Tabs Styles */
+    .tab-btn {
+      padding: 0.5rem 1rem;
+      border-bottom: 3px solid transparent;
+      color: var(--muted);
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    .tab-btn.active {
+      border-color: var(--borderColour);
+      color: var(--borderColour);
+    }
 
     /* Media Queries */
     @media (max-width: 420px){
@@ -221,6 +234,20 @@
       background-color: var(--mainColour);
       border-radius: 1rem;
     }
+    
+    /* Loading Spinner */
+    .spinner {
+      border: 3px solid rgba(0, 0, 0, 0.1);
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border-left-color: var(--borderColour);
+      animation: spin 1s linear infinite;
+      display: inline-block;
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
   </style>
 </head>
 <body class="min-h-screen flex flex-col items-center justify-center p-4">
@@ -229,18 +256,63 @@
     
     <!-- 
       SECTION 1: SETUP AREA 
-      ENG: Area where user pastes the JSON/Array 
-      CAST: Área donde el usuario pega el JSON/Array
-    --><section id="setup-view" class="paper rounded-xl p-4 sm:p-5 mb-6 text-center">
+      ENG: Area where user pastes the JSON/Array or Uses AI
+      CAST: Área donde el usuario pega el JSON/Array o usa IA
+    -->
+    <section id="setup-view" class="paper rounded-xl p-4 sm:p-5 mb-6 text-center">
       <h1 class="heading font-bold mb-4" style="font-size:clamp(1.4rem, 1.5vw + 1.1rem, 2.2rem)">
-        Insert your Question Array
+        Configure Quiz
       </h1>
-      <textarea id="input-data" 
-        class="w-full border border-gray-300 rounded-lg p-2 text-xs font-mono h-40 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none" 
-        placeholder='[ { "question": "Example?", "options": [...] } ]'></textarea>
+
+      <!-- Tabs Navigation -->
+      <div class="flex justify-center gap-4 mb-4 border-b border-gray-200">
+        <button id="tab-manual" class="tab-btn active">Paste Code</button>
+        <button id="tab-ai" class="tab-btn">✨ Generate with AI</button>
+      </div>
+
+      <!-- Tab Content: Manual -->
+      <div id="panel-manual" class="tab-panel">
+        <textarea id="input-data" 
+          class="w-full border border-gray-300 rounded-lg p-2 text-xs font-mono h-40 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none" 
+          placeholder='[{
+    question: "Insert your question text here",
+    options: [
+      { text: "Option 1", correct: true },
+      { text: "Option 2", correct: false },
+      { text: "Option 3", correct: false },
+      { text: "Option 4", correct: false },
+      { text: "Option 5", correct: false }
+      // You may add or remove options as the design requires
+    ],
+    explanation: "Insert here the detailed explanation of why the correct option is correct."
+  },
+
+  // … repeat the same object structure for each additional question …]'></textarea>
+      </div>
+
+      <!-- Tab Content: AI -->
+      <div id="panel-ai" class="tab-panel hidden">
+        <div class="bg-blue-50 border border-blue-100 rounded-lg p-4 text-left">
+          
+          <!-- API KEY INPUT -->
+          <label class="block text-xs font-bold text-blue-800 mb-1">Your Gemini API Key</label>
+          <input type="password" id="api-key-input" 
+             class="w-full border border-blue-200 rounded p-2 mb-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+             placeholder="Paste your AI Studio Key here (AIzaSy...)">
+
+          <label class="block text-sm font-bold text-blue-800 mb-2">What topic do you want to practice?</label>
+          <textarea id="ai-prompt" 
+            class="w-full border border-blue-200 rounded-lg p-3 text-sm h-32 focus:ring-2 focus:ring-blue-500 outline-none resize-none" 
+            placeholder="Ex: 10 advanced JavaScript questions specifically about closures and promises..."></textarea>
+          
+          <p class="text-xs text-blue-600 mt-2">
+            * Uses Gemini 1.5 Flash. Your key is not stored.
+          </p>
+        </div>
+      </div>
       
-      <!-- Timer Configuration -->
-      <div class="mt-4 flex flex-col sm:flex-row items-center justify-center gap-2 text-sm">
+      <!-- Shared Settings (Timer) -->
+      <div class="mt-4 flex flex-col sm:flex-row items-center justify-center gap-2 text-sm border-t border-gray-100 pt-4">
         <label for="timer-input" class="font-semibold text-gray-600">Timer per question (seconds):</label>
         <input type="number" id="timer-input" 
           class="border border-gray-300 rounded p-2 w-24 text-center text-lg font-bold text-blue-600 focus:ring-2 focus:ring-blue-500 outline-none" 
@@ -249,8 +321,8 @@
 
       <p id="error-msg" class="mt-2 text-sm text-red-600 hidden"></p>
       
-      <button id="btn-load" class="mt-4 w-full py-3 font-semibold btn" aria-label="Load questions and start">
-        Load & Start Quiz
+      <button id="btn-load" class="mt-4 w-full py-3 font-semibold btn transition-all" aria-label="Load questions and start">
+        Start Quiz
       </button>
     </section>
 
@@ -258,7 +330,8 @@
       SECTION 2: QUIZ INTERFACE 
       ENG: The active quiz view (Hidden by default)
       CAST: La vista activa del quiz (Oculta por defecto)
-    --><section id="quiz-view" class="hidden">
+    -->
+    <section id="quiz-view" class="hidden">
       <!-- Header: Progress & Timer -->
       <div id="quizHeader" class="paper rounded-xl p-3 sm:p-4 mb-6">
         <div class="flex items-center justify-between mb-3">
@@ -274,14 +347,16 @@
         </div>
       </div>
 
-      <!-- Question Content --><div id="questionArea" class="paper rounded-xl p-4 sm:p-5">
+      <!-- Question Content -->
+      <div id="questionArea" class="paper rounded-xl p-4 sm:p-5">
         <h2 id="question-text" class="heading font-bold mb-4" style="font-size:clamp(1.25rem, 1.4vw + 1rem, 2rem)"></h2>
         
         <ul id="options-list" class="space-y-3" role="listbox" aria-labelledby="question-text">
           <!-- JS will inject options here --></ul>
       </div>
 
-      <!-- Footer: Navigation --><div id="navContainer" class="mt-8 pt-2">
+      <!-- Footer: Navigation -->
+      <div id="navContainer" class="mt-8 pt-2">
         <button id="btn-next" class="w-full py-3 font-semibold btn" aria-label="Next question">
           Next Question
         </button>
@@ -295,7 +370,8 @@
       SECTION 3: RESULTS 
       ENG: Final summary
       CAST: Resumen final
-    --><section id="results-view" class="hidden paper rounded-xl p-4 sm:p-5 mt-6">
+    -->
+    <section id="results-view" class="hidden paper rounded-xl p-4 sm:p-5 mt-6">
       <h2 class="text-center heading font-bold" style="font-size:clamp(1.5rem, 1.6vw + 1.2rem, 2.2rem)">
         Quiz Completed!
       </h2>
@@ -318,7 +394,8 @@
         </div>
       </div>
 
-      <!-- Detailed Feedback Loop --><div id="feedback-container" class="card rounded-xl p-4">
+      <!-- Detailed Feedback Loop -->
+      <div id="feedback-container" class="card rounded-xl p-4">
         <h3 class="heading font-bold mb-4" style="font-size:clamp(1.25rem, 1.4vw + 1rem, 1.75rem)">
           Review Your Answers
         </h3>
@@ -336,7 +413,7 @@
   <!-- Developer Footer -->
   <footer class="dev-footer">
     <p>
-      Web Developer Daniel Alejandro, hiring: 
+      Web Developer Daniel Alejandro, contrataciones: 
       <a href="mailto:daniel.salas@bue.edu.ar" class="text-blue-600 hover:underline">daniel.salas@bue.edu.ar</a>. 
       © All rights reserved <span id="yearPlaceholder"></span>.
     </p>
@@ -353,12 +430,15 @@
       questions: [],
       currentIndex: 0,
       score: 0,
-      userHistory: [], // Stores { selectedIndex, isCorrect, timedOut }
+      userHistory: [], 
       
       // Timer State
       timerSettings: { duration: 60 },
       timeLeft: 60,
       timerInterval: null,
+
+      // UI State
+      activeTab: 'manual', 
 
       // DOM Elements Cache
       ui: {
@@ -366,8 +446,20 @@
         quizView: document.getElementById('quiz-view'),
         resultsView: document.getElementById('results-view'),
         inputData: document.getElementById('input-data'),
+        
+        // AI Inputs
+        aiPrompt: document.getElementById('ai-prompt'),
+        apiKeyInput: document.getElementById('api-key-input'),
+        
         timerInput: document.getElementById('timer-input'),
         errorMsg: document.getElementById('error-msg'),
+        btnLoad: document.getElementById('btn-load'),
+        
+        // Tabs
+        tabManual: document.getElementById('tab-manual'),
+        tabAi: document.getElementById('tab-ai'),
+        panelManual: document.getElementById('panel-manual'),
+        panelAi: document.getElementById('panel-ai'),
         
         questionText: document.getElementById('question-text'),
         optionsList: document.getElementById('options-list'),
@@ -384,9 +476,38 @@
         feedbackList: document.getElementById('feedback-list')
       },
 
+      init() {
+        this.setupTabs();
+        this.setupEventListeners();
+      },
+
+      setupTabs() {
+        this.ui.tabManual.addEventListener('click', () => this.switchTab('manual'));
+        this.ui.tabAi.addEventListener('click', () => this.switchTab('ai'));
+      },
+
+      switchTab(tab) {
+        this.activeTab = tab;
+        this.ui.errorMsg.classList.add('hidden');
+
+        if (tab === 'manual') {
+          this.ui.tabManual.classList.add('active');
+          this.ui.tabAi.classList.remove('active');
+          this.ui.panelManual.classList.remove('hidden');
+          this.ui.panelAi.classList.add('hidden');
+          this.ui.btnLoad.textContent = "Start Quiz";
+        } else {
+          this.ui.tabManual.classList.remove('active');
+          this.ui.tabAi.classList.add('active');
+          this.ui.panelManual.classList.add('hidden');
+          this.ui.panelAi.classList.remove('hidden');
+          this.ui.btnLoad.textContent = "✨ Generate & Start";
+        }
+      },
+
       /**
-       * ENG: Utility to shuffle arrays (Fisher-Yates)
-       * CAST: Utilidad para mezclar arrays (Fisher-Yates)
+       * ENG: Utility to shuffle arrays
+       * CAST: Utilidad para mezclar arrays
        */
       shuffle(array) {
         const arr = [...array];
@@ -398,41 +519,138 @@
       },
 
       /**
-       * ENG: Load and Parse Data
-       * CAST: Cargar y procesar datos
+       * ENG: Main Start Handler
+       * CAST: Manejador principal de inicio
        */
-      loadData() {
-        const raw = this.ui.inputData.value.trim();
-        // Set Timer Duration from Input
+      async handleStart() {
+        // Set Timer
         const timerVal = parseInt(this.ui.timerInput.value, 10);
         this.timerSettings.duration = (timerVal && timerVal > 0) ? timerVal : 60;
 
+        if (this.activeTab === 'ai') {
+          await this.startWithAI();
+        } else {
+          this.startWithManual();
+        }
+      },
+
+      /**
+       * ENG: Start with Manual Input
+       * CAST: Iniciar con entrada manual
+       */
+      startWithManual() {
+        const raw = this.ui.inputData.value.trim();
         if (!raw) return this.showError('Please paste your data array first.');
 
         try {
-          // ENG: Try secure JSON parsing first, fallback to function eval for loose JS objects
-          // CAST: Intenta parseo JSON seguro primero, recurre a eval de función para objetos JS sueltos
           let data;
           try {
             data = JSON.parse(raw);
           } catch (e) {
             data = new Function(`return ${raw}`)();
           }
-
-          if (!Array.isArray(data) || data.length === 0) throw new Error('Data is not a valid array.');
-          
-          // ENG: Prepare Data (Shuffle questions AND options)
-          // CAST: Preparar datos (Mezclar preguntas Y opciones)
-          this.questions = this.shuffle(data).map(q => ({
-            ...q,
-            options: this.shuffle(q.options)
-          }));
-
-          this.startQuiz();
+          this.validateAndLaunch(data);
         } catch (err) {
           console.error(err);
           this.showError('Invalid data format. Ensure it is a valid Javascript Array.');
         }
+      },
+
+      /**
+       * ENG: Start with AI Generation
+       * CAST: Iniciar con generación de IA
+       */
+      async startWithAI() {
+        const prompt = this.ui.aiPrompt.value.trim();
+        const apiKey = this.ui.apiKeyInput.value.trim();
+
+        if (!apiKey) return this.showError('Please enter your Gemini API Key.');
+        if (!prompt) return this.showError('Please enter a topic to generate.');
+
+        // Loading State
+        this.ui.btnLoad.disabled = true;
+        this.ui.btnLoad.innerHTML = '<span class="spinner"></span> Generating...';
+        this.ui.errorMsg.classList.add('hidden');
+
+        try {
+          const questions = await this.fetchQuestionsFromGemini(prompt, apiKey);
+          this.validateAndLaunch(questions);
+        } catch (error) {
+          console.error(error);
+          this.showError('AI Generation Failed: ' + error.message);
+        } finally {
+          this.ui.btnLoad.disabled = false;
+          this.ui.btnLoad.textContent = "✨ Generate & Start";
+        }
+      },
+
+      /**
+       * ENG: Validate Data and Start Quiz
+       * CAST: Validar datos e iniciar Quiz
+       */
+      validateAndLaunch(data) {
+        if (!Array.isArray(data) || data.length === 0) throw new Error('Data is not a valid array.');
+          
+        this.questions = this.shuffle(data).map(q => ({
+          ...q,
+          options: this.shuffle(q.options)
+        }));
+
+        this.startQuiz();
+      },
+
+      /**
+       * ENG: Gemini API Call
+       * CAST: Llamada a la API de Gemini
+       */
+      async fetchQuestionsFromGemini(userTopic, key) {
+        // EN: Here we instruct the AI to generate exactly 5 options
+        // CAST: Aquí le ordenamos a la IA generar exactamente 5 opciones
+        const systemInstruction = `
+          You are a strict JSON generator for a quiz app.
+          Topic: ${userTopic}
+          
+          RULES:
+          1. Return ONLY a valid JSON Array. No markdown formatting, no text before or after.
+          2. Generate between 5 to 10 questions.
+          3. Generate EXACTLY 5 options per question.
+          4. Structure for each object:
+          {
+            "question": "string",
+            "options": [
+              {"text": "string", "correct": boolean},
+              {"text": "string", "correct": boolean},
+              {"text": "string", "correct": boolean},
+              {"text": "string", "correct": boolean},
+              {"text": "string", "correct": boolean}
+            ],
+            "explanation": "string (brief explanation of why the correct answer is correct)"
+          }
+          5. Ensure exactly one option is correct per question.
+        `;
+
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`;
+
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: systemInstruction }] }]
+          })
+        });
+
+        if (!response.ok) {
+          const errData = await response.json();
+          throw new Error(errData.error?.message || 'API Error');
+        }
+
+        const result = await response.json();
+        let text = result.candidates[0].content.parts[0].text;
+
+        // CLEANER: Remove ```json and ``` code blocks if present
+        text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+
+        return JSON.parse(text);
       },
 
       showError(msg) {
@@ -458,10 +676,6 @@
         this.renderQuestion();
       },
 
-      /**
-       * ENG: Render Progress Bar (Segments)
-       * CAST: Renderizar Barra de Progreso (Segmentos)
-       */
       renderProgressBar() {
         this.ui.progressBar.innerHTML = '';
         this.questions.forEach((_, idx) => {
@@ -477,10 +691,6 @@
         if (dot) dot.classList.add(status);
       },
 
-      /**
-       * ENG: Timer Logic
-       * CAST: Lógica del Temporizador
-       */
       startTimer() {
         clearInterval(this.timerInterval);
         this.timeLeft = this.timerSettings.duration;
@@ -507,12 +717,9 @@
 
       handleTimeout() {
         clearInterval(this.timerInterval);
-        
-        // Record as incorrect (Time Out)
         this.userHistory[this.currentIndex] = { selectedIndex: -1, isCorrect: false, timedOut: true };
         this.updateProgressDot('incorrect');
 
-        // Show Feedback
         this.ui.optionsList.classList.add('feedback-mode');
         this.ui.questionText.innerHTML += ' <span style="color:var(--secondColour)">(Time Out!)</span>';
         
@@ -521,26 +728,18 @@
 
         domOptions.forEach((el, idx) => {
           const optData = q.options[idx];
-          if (optData.correct) {
-            el.classList.add('is-correct'); // Reveal correct
-          }
+          if (optData.correct) el.classList.add('is-correct');
         });
 
         this.ui.btnNext.disabled = false;
       },
 
-      /**
-       * ENG: Display Current Question
-       * CAST: Mostrar pregunta actual
-       */
       renderQuestion() {
         const q = this.questions[this.currentIndex];
         
-        // Update Header
         this.ui.progressText.textContent = `${this.currentIndex + 1} of ${this.questions.length}`;
         this.ui.questionText.textContent = `${this.currentIndex + 1}. ${q.question}`;
         
-        // Reset UI
         this.ui.btnNext.disabled = true;
         this.ui.btnNext.textContent = (this.currentIndex === this.questions.length - 1) ? 'View Results' : 'Next Question';
         this.ui.optionsList.innerHTML = '';
@@ -568,7 +767,6 @@
             </div>
           `;
 
-          // Listeners
           li.addEventListener('click', (e) => {
             const discardBtnEl = e.target.closest('.btn-discard');
             if (discardBtnEl) {
@@ -590,7 +788,7 @@
         });
 
         window.scrollTo({ top: 0, behavior: 'smooth' });
-        this.startTimer(); // Start countdown
+        this.startTimer();
       },
 
       toggleDiscard(element) {
@@ -598,19 +796,14 @@
         element.classList.toggle('discarded');
       },
 
-      /**
-       * ENG: Process User Answer
-       * CAST: Procesar respuesta del usuario
-       */
       handleAnswer(selectedIndex) {
         if (this.ui.optionsList.classList.contains('feedback-mode')) return; 
 
-        clearInterval(this.timerInterval); // STOP TIMER
+        clearInterval(this.timerInterval);
 
         const q = this.questions[this.currentIndex];
         const isCorrect = q.options[selectedIndex].correct;
         
-        // Record history
         this.userHistory[this.currentIndex] = { selectedIndex, isCorrect, timedOut: false };
         
         if (isCorrect) {
@@ -620,19 +813,13 @@
           this.updateProgressDot('incorrect');
         }
 
-        // UI Feedback
         this.ui.optionsList.classList.add('feedback-mode');
         const domOptions = Array.from(this.ui.optionsList.children);
 
         domOptions.forEach((el, idx) => {
           const optData = q.options[idx];
-          
-          if (optData.correct) {
-            el.classList.add('is-correct'); 
-          } 
-          if (idx === selectedIndex && !optData.correct) {
-            el.classList.add('is-wrong'); 
-          }
+          if (optData.correct) el.classList.add('is-correct');
+          if (idx === selectedIndex && !optData.correct) el.classList.add('is-wrong');
         });
 
         this.ui.btnNext.disabled = false;
@@ -640,7 +827,7 @@
       },
 
       nextQuestion() {
-        clearInterval(this.timerInterval); // Safety clear
+        clearInterval(this.timerInterval);
         this.currentIndex++;
         if (this.currentIndex < this.questions.length) {
           this.renderQuestion();
@@ -649,24 +836,17 @@
         }
       },
 
-      /**
-       * ENG: Show Final Results
-       * CAST: Mostrar resultados finales
-       */
       showResults() {
-        clearInterval(this.timerInterval); // Ensure stopped
+        clearInterval(this.timerInterval);
         this.ui.quizView.classList.add('hidden');
         this.ui.resultsView.classList.remove('hidden');
 
-        // Stats
         const accuracy = Math.round((this.score / this.questions.length) * 100);
         this.ui.finalScore.textContent = `${this.score} / ${this.questions.length}`;
         this.ui.finalAccuracy.textContent = `${accuracy}%`;
         this.ui.correctCount.textContent = this.score;
         this.ui.incorrectCount.textContent = this.questions.length - this.score;
 
-
-        // Detailed Feedback Generation
         this.ui.feedbackList.innerHTML = '';
         
         const incorrectAnswers = this.userHistory.filter(h => h && !h.isCorrect);
@@ -681,7 +861,6 @@
               const q = this.questions[index];
               const correctOption = q.options.find(o => o.correct);
               
-              // Handle Timed Out vs Wrong Selection
               let userText = '';
               if (answer.timedOut) {
                 userText = '<span style="color:var(--secondColour); font-style:italic">Time Out (No answer)</span>';
@@ -703,51 +882,55 @@
           });
         }
         window.scrollTo(0, 0);
+      },
+
+      setupEventListeners() {
+        this.ui.btnLoad.addEventListener('click', () => this.handleStart());
+        this.ui.btnNext.addEventListener('click', () => this.nextQuestion());
+
+        document.getElementById('btn-restart').addEventListener('click', () => {
+          this.questions = this.shuffle(this.questions).map(q => ({ ...q, options: this.shuffle(q.options) }));
+          this.startQuiz();
+        });
+
+        document.addEventListener('keydown', (e) => {
+          if (this.ui.quizView.classList.contains('hidden')) return;
+
+          const key = e.key.toLowerCase();
+          const letters = ['a','b','c','d','e'];
+
+          if (letters.includes(key)) {
+            const idx = letters.indexOf(key);
+            const options = this.ui.optionsList.children;
+            
+            if (idx < options.length) {
+              e.preventDefault();
+              if (e.shiftKey) {
+                this.toggleDiscard(options[idx]);
+              } else {
+                this.handleAnswer(idx);
+              }
+            }
+          }
+          else if (key === 'n') {
+            if (!this.ui.btnNext.disabled) {
+              this.nextQuestion();
+            }
+          }
+        });
       }
     };
 
-    // --- EVENT LISTENERS ---
-
-    document.getElementById('btn-load').addEventListener('click', () => QuizApp.loadData());
-
-    document.getElementById('btn-next').addEventListener('click', () => QuizApp.nextQuestion());
-
-    document.getElementById('btn-restart').addEventListener('click', () => {
-      QuizApp.questions = QuizApp.shuffle(QuizApp.questions).map(q => ({ ...q, options: QuizApp.shuffle(q.options) }));
-      QuizApp.startQuiz();
-    });
-
-    document.addEventListener('keydown', (e) => {
-      if (QuizApp.ui.quizView.classList.contains('hidden')) return;
-
-      const key = e.key.toLowerCase();
-      const letters = ['a','b','c','d','e'];
-
-      if (letters.includes(key)) {
-        const idx = letters.indexOf(key);
-        const options = QuizApp.ui.optionsList.children;
-        
-        if (idx < options.length) {
-          e.preventDefault();
-          if (e.shiftKey) {
-            QuizApp.toggleDiscard(options[idx]);
-          } else {
-            QuizApp.handleAnswer(idx);
-          }
-        }
-      }
-      else if (key === 'n') {
-        if (!QuizApp.ui.btnNext.disabled) {
-          QuizApp.nextQuestion();
-        }
-      }
-    });
-
+    // Auto-Init
     document.addEventListener("DOMContentLoaded", function() {
+      // 1. Year Footer
       const yearPlaceholder = document.getElementById("yearPlaceholder");
       if (yearPlaceholder) {
         yearPlaceholder.textContent = new Date().getFullYear();
       }
+
+      // 2. Start App
+      QuizApp.init();
     });
   </script>
 </body>
